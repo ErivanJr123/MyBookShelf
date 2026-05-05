@@ -7,7 +7,7 @@ export const authorsList = (req,res) => {
 };
 export const findAuthor = (req,res) => {
     const {id} = req.params;
-    const author = authors.find((A) => A.id === Number(req.params));
+    const author = authors.find((A) => A.id === Number(id));
     if(!author){
         res.status(404).json({message:"Autor não encontrado"});
     }
