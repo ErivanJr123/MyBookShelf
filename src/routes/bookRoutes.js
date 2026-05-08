@@ -1,12 +1,12 @@
 import { Router } from "express";
 import { addBook, bookShelf, deleteBook, findBooks, updateStatusBook } from '../controllers/bookControllers.js';
-import { ruleBookValidator } from "../validator/bookValidator.js";
+import bookValidator from "../validator/bookValidator.js";
 
 const router = Router();
 
 router.get('/', bookShelf);
 router.get('/:id', findBooks);
-router.post('/', ruleBookValidator, addBook);
+router.post('/', bookValidator.create, addBook);
 router.patch('/:id', updateStatusBook);
 router.delete('/:id', deleteBook);
 

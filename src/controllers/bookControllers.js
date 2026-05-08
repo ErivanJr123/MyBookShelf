@@ -1,35 +1,31 @@
-import { books } from '../data/bookData.js';
+import { bookRepository } from '../repositories/bookRepository.js';
 
 //requisição
 //READ
-export const bookShelf = (req,res) => {
-    res.status(200).json(books);
+export const bookShelf = async (req,res) => {
+    res.status(200).json(await bookRepository.getAll());
 };
-export const findBooks = (req,res) => {
+export const findBooks = async (req,res) => {
     const {id} = req.params;
-    const book = books.find((B)=> B.id === Number(id));
+    const book = await bookRepository.findbyID(Number(id));
     req.status(200).json(book);
 };
 //CREATE
-export const addBook = (req,res) =>{
+export const addBook = async (req,res) =>{
     const newBook = {id: Date.now(), ...req.body};
-    books.push(newBook)
+    await bookRepository.create(newBook);
     res.status(201).json(newBook);
 };
 //UPDATE
-export const updateStatusBook = (req,res) => {
+export const updateStatusBook = async (req,res) => {
     const {id} = req.params;
-    const book = books.find((B) => B.id === Number(id));
-    if(!book){return res.status(404).json({message:"Livro não encontrado"})};
-    if(req.body.reading_status) book.reading_status = req.body.reading_status;
+    const book = await bookRepository.update(Number(id),req.body.status);
+    if(!book){res.status(404).json({message:"Livro não encontrado"})};
     res.json(book);
 };
 //DELETE
-export const deleteBook = (req,res) => {
+export const deleteBook = async (req,res) => {
     const {id} = req.params;
-    const tam = books.length();
-    books = books.filter((B) => B.id !== Number(id));
-
-    if(tam === books.length()){res.status(404).json("Livro não encontrado")};
-    res.status(204).send();
+    const removeu = await bookRepository.remove(Number(id));
+    removeu? res.status(204).send(): res.status(404).json({message:"Livro não encontrado"});
 };

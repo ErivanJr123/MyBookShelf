@@ -1,13 +1,14 @@
 import { body, validationResult } from "express-validator";
+import { authorRepository } from "../repositories/authorRepository.js";
 
-export const ruleAuthorValidation = [
+const createValidation = [
     body("nome")
         .trim()
         .notEmpty().withMessage("Nome do autor é obrigatório"),
     body("nacionalidade")
         .trim(),
-    body("Ano_de_Nascimento")
-        .isInt({max: new Date.getFullyear()}).withMessage("Ano de nascimento Inválido ou Vazio.")
+    body("nascido")
+        .isInt({max: new Date().getFullYear()}).withMessage("Ano de nascimento Inválido ou Vazio.")
         .toInt(),
 
     (req,res,next)=>{
@@ -18,3 +19,19 @@ export const ruleAuthorValidation = [
         next();
     }
 ];
+class Validator{
+    static create = createValidation;
+
+    static async delete(req,res,next){
+        try {
+            const {id} = req.params;
+            const Nlivros = await authorRepository.contByAuthorID(Number(id));
+            if(Nlivros>0){throw new Error("O autor possui lívros em seu nome")};
+            next();
+        } catch (error) {
+            return res.status(400).json({error: error.message})
+        }
+    }
+};
+
+export default Validator;
