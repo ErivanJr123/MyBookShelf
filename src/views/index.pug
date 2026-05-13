@@ -4,7 +4,6 @@ block content
   div(style="text-align: center; padding: 50px 0;")
     h1 📚 MyBookShelf
     
-    // Elemento de Notificação (Invisível por padrão)
     #msg-erro(style="display: none; background: #ffcccc; color: #cc0000; border: 1px solid #cc0000; padding: 15px; margin: 20px auto; border-radius: 8px; max-width: 400px;")
       strong ⚠️ Atenção: 
       span#texto-erro 
@@ -14,28 +13,24 @@ block content
       a#link-livros.btn.btn-primary(href="/books") 📖 Livros
 
   script.
-    // Selecionamos os elementos que vamos manipular
     const btnLivros = document.getElementById('link-livros');
     const msgErro = document.getElementById('msg-erro');
     const textoErro = document.getElementById('texto-erro');
 
     btnLivros.addEventListener('click', async (e) => {
-      e.preventDefault(); // Interrompe o clique para validar
+      e.preventDefault();
 
       try {
         const response = await fetch('/api/authors');
         const authors = await response.json();
 
         if (!authors || authors.length === 0) {
-          // Se não houver autores, preenche a mensagem e a torna visível
           textoErro.innerText = "Cadastre ao menos um autor antes de gerenciar os livros.";
           msgErro.style.display = 'block';
           
-          // Efeito visual: piscar a mensagem de erro
           msgErro.style.animation = "shake 0.5s";
           setTimeout(() => msgErro.style.animation = "", 500);
         } else {
-          // Se estiver tudo OK, redireciona
           window.location.href = '/books';
         }
       } catch (error) {

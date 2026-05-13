@@ -7,8 +7,8 @@ class normalize{// serve para remover os caracteres indesejados que estão selec
     }
     static Nome(text){
         return text
-            .replave(/[_\-~^<>|/]/g, " ")
-            .replace(/[^a-zA-ZÀ-ÿ]/g,"")
+            .replace(/[_\-~^<>|/]/g, " ")
+            .replace(/[^a-zA-ZÀ-ÿ ]/g,"")
             .replace(/\s+/g," ")
             .trim()
     }

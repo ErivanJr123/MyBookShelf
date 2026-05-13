@@ -29,15 +29,16 @@ export const addAuthor = async (req,res,next) => {
         next(error);
     }
 };
+//PATCH
 export const updateAuthor = async (req,res,next) => {
     try {
         const { id } = req.params;
-        const { nacionalidade } = req.body;
+        const update = req.body;
         
-        const updateDTO = await authorService.update();
+        const updateDTO = await authorService.update(id,update);
         res.status(200).json(updateDTO);
     } catch (error) {
-        next(error)
+        next(error);
     }
 }
 //DELETE

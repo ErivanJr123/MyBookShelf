@@ -4,7 +4,7 @@ class AuthorDTO{
     static database(data){
         return{
             id: data.id,
-            nome: normalize.Nome(data.nome),
+            nome: data.nome?normalize.Nome(data.nome):"",
             nacionalidade: data.nacionalidade? normalize.Nome(data.nacionalidade): "",
             nascimento: data.nascimento
         }
@@ -13,7 +13,7 @@ class AuthorDTO{
         return{
             id: obj.id,
             nome: obj.nome,
-            nacionalidade: obj.nacionalidade1,
+            nacionalidade: obj.nacionalidade,
             nascimento: obj.nascimento
         }
     }

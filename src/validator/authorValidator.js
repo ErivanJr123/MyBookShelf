@@ -11,7 +11,8 @@ class Validator{
             .trim()
             .notEmpty().withMessage("Nome do autor é obrigatório"),
         body("nacionalidade")
-            .trim(),
+            .trim()
+            .escape(),
         body("nascimento")
             .isInt({max: new Date().getFullYear()}).withMessage("Ano de nascimento Inválido ou Vazio.")
             .toInt()

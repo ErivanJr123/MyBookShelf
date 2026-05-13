@@ -8,7 +8,7 @@ const router = Router();
 router.get('/', authorsList);
 router.get('/:id', authorValidator.forGetID, handleValidation,findAuthor);
 router.post('/', authorValidator.forCreate, handleValidation, addAuthor);
-router.patch('/',authorValidator.forUpdate, handleValidation, updateAuthor);
+router.patch('/:id',authorValidator.forUpdate, handleValidation, updateAuthor);
 router.delete('/:id', authorValidator.forDelete, handleValidation, deleteAuthor);
 
 router.use((req,res,next)=>{

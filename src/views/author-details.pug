@@ -1,0 +1,135 @@
+extends layout
+
+block content
+  h1#authorName Carregando...
+  
+  .card(style="background: #eee; padding: 20px; border-radius: 8px; margin-bottom: 20px;")
+    p#authorBirth Carregando...
+    
+    // Área de exibição de dados: Mostra apenas texto por padrão
+    #view-nacionalidade
+      p
+        strong Nacionalidade: 
+        span#authorNatText Carregando...
+      button#btn-editar-nat.btn.btn-primary(type="button" style="padding: 4px 10px; font-size: 12px;") ✏️ Editar Nacionalidade
+
+    // Área de edição: Fica escondida e só aparece quando clica no botão acima
+    #edit-nacionalidade(style="display: none; margin-top: 15px;")
+      .form-group
+        label(for="authorNatInput") Nova Nacionalidade:
+        input#authorNatInput(name="nacionalidade" placeholder="Ex: Brasileira")
+        div(style="margin-top: 10px; display: flex; gap: 10px;")
+          button#btn-salvar-nat.btn.btn-primary(type="button") Salvar
+          button#btn-cancelar-nat.btn(type="button" style="background: #95a5a6; color: white;") Cancelar
+  
+  h3 📚 Livros deste Autor
+  ul#authorBooks
+    // Preenchido via JavaScript
+
+  hr
+  form#deleteAuthorForm
+    button.btn.btn-danger(type="submit") Excluir Autor
+
+  script.
+    const authorId = window.location.pathname.split('/').pop();
+    
+    // Seletores dos novos elementos de controle de tela
+    const viewArea = document.querySelector('#view-nacionalidade');
+    const editArea = document.querySelector('#edit-nacionalidade');
+    const textNat = document.querySelector('#authorNatText');
+    const inputNat = document.querySelector('#authorNatInput');
+    
+    const btnEditar = document.querySelector('#btn-editar-nat');
+    const btnSalvar = document.querySelector('#btn-salvar-nat');
+    const btnCancelar = document.querySelector('#btn-cancelar-nat');
+
+    async function loadAuthorData() {
+      try {
+        const resAuth = await fetch(`/api/authors/${authorId}`);
+        const author = await resAuth.json();
+        
+        document.querySelector('#authorName').innerText = `✍️ ${author.nome}`;
+        document.querySelector('#authorBirth').innerText = `Ano de Nascimento: ${author.nascimento}`;
+        
+        // Exibe o valor em texto simples
+        textNat.innerText = author.nacionalidade || 'Não informada';
+        inputNat.value = author.nacionalidade || '';
+
+        const resBooks = await fetch('/api/books');
+        const allBooks = await resBooks.json();
+        const authorBooks = allBooks.filter(b => b.autorID === authorId);
+        
+        const list = document.querySelector('#authorBooks');
+        list.innerHTML = "";
+        
+        if (authorBooks.length === 0) {
+          list.innerHTML = "<li>Nenhum livro cadastrado para este autor.</li>";
+        } else {
+          authorBooks.forEach(b => {
+            list.innerHTML += `<li><strong>${b.titulo}</strong> — Status: ${b.status}</li>`;
+          });
+        }
+      } catch (err) {
+        console.error("Erro ao carregar dados:", err);
+      }
+    }
+
+    // Alterna a interface para o modo de edição
+    btnEditar.onclick = () => {
+      viewArea.style.display = 'none';
+      editArea.style.display = 'block';
+    };
+
+    // Cancela a operação e esconde o campo
+    btnCancelar.onclick = () => {
+      window.limparErroGlobal();
+      inputNat.value = textNat.innerText === 'Não informada' ? '' : textNat.innerText;
+      editArea.style.display = 'none';
+      viewArea.style.display = 'block';
+    };
+
+    // Dispara o salvamento e usa o centralizador de erros da API
+    async function salvarNacionalidade() {
+      window.limparErroGlobal();
+      const novaNacionalidade = inputNat.value.trim();
+      const dados = { nacionalidade: novaNacionalidade };
+      
+      const resultado = await window.enviarParaAPI(`/api/authors/${authorId}`, dados, 'PATCH');
+      
+      if (resultado.sucesso) {
+        // Se a API aceitar, atualiza o texto na tela e alterna a interface de volta
+        textNat.innerText = novaNacionalidade || 'Não informada';
+        editArea.style.display = 'none';
+        viewArea.style.display = 'block';
+      }
+    }
+
+    btnSalvar.onclick = salvarNacionalidade;
+
+    // Permite salvar também pressionando Enter dentro do input
+    inputNat.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') salvarNacionalidade();
+    });
+
+    // Lógica para excluir o autor
+    document.querySelector('#deleteAuthorForm').onsubmit = async (e) => {
+      e.preventDefault();
+      window.limparErroGlobal();
+      
+      if (!confirm("Tem certeza? Um autor só pode ser removido se não houver livros vinculados.")) return;
+
+      try {
+        const res = await fetch(`/api/authors/${authorId}`, { method: 'DELETE' });
+        
+        if (res.ok) {
+          window.location.href = '/authors';
+        } else {
+          const errorJson = await res.json();
+          window.mostrarErroGlobal(errorJson.message);
+        }
+      } catch (err) {
+        window.mostrarErroGlobal("Erro crítico ao tentar excluir o autor.");
+      }
+    };
+
+    loadAuthorData();

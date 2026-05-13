@@ -4,11 +4,15 @@ block content
   h1#bookTitle Carregando...
   p#bookInfo
   
-  label Mudar Status:
-  select#statusSelect
-    option(value="Ler") Ler
-    option(value="Lendo") Lendo
-    option(value="Lido") Lido
+  #acoesContainer(style="display: flex; flex-direction: column; align-items: flex-start; gap: 10px; margin-top: 15px;")
+    div
+      label(for="statusSelect" style="margin-right: 5px;") Mudar Status:
+      select#statusSelect
+        option(value="Ler") Ler
+        option(value="Lendo") Lendo
+        option(value="Lido") Lido
+    
+    button#btnExcluir(style="background-color: #dc3545; color: white; border: none; padding: 5px 10px; cursor: pointer; border-radius: 4px;") Remover Livro
     
   script.
     const bookId = window.location.pathname.split('/').pop();
@@ -36,5 +40,18 @@ block content
       }
     };
 
-    loadBook();
+    document.querySelector('#btnExcluir').onclick = async () => {
+      window.limparErroGlobal();
+      
+      const confirmar = confirm("Tem certeza que deseja remover este livro da estante?");
+      if (!confirmar) return;
 
+      const resultado = await window.enviarParaAPI(`/api/books/${bookId}`, {}, 'DELETE');
+      
+      if (resultado.sucesso) {
+        alert('Livro removido com sucesso!');
+        window.location.href = '/books';
+      }
+    };
+
+    loadBook();

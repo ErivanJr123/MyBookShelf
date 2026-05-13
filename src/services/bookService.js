@@ -25,7 +25,7 @@ class Service{
         }
         const id = randomUUID();
         const bookDTO = dto.database({id: id, ...data});
-        const duplicado = await bookRepository.findBookDuplicate(data.autorID, bookDTO.titulo);
+        const duplicado = await bookRepository.findBookDuplicate(bookDTO.autorID, bookDTO.titulo);
         if(duplicado){
             const error = new Error("Livro já existe");
             error.statusCode = 409;

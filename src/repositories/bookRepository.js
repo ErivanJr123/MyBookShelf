@@ -35,10 +35,13 @@ export const bookRepository = {
         return true;
     },
     // serve para testar se há um livro com mesmo título para o mesmo autor
-    async findBookDuplicate(authorID, titulo){
+    async findBookDuplicate(autorID, titulo){
         await db.read();
-        const authorBooks = db.data.books.filter(B=>B.authorID === authorID)
-        if(authorBooks.find(B => B.titulo.toLowerCase() === titulo.toLowerCase())){return true}
+        const authorBooks = db.data.books.filter(B=>B.autorID === autorID)
+        const duplicado = authorBooks.some(B => B.titulo.toLowerCase().replace(/ /g,"") === titulo.toLowerCase().replace(/ /g,""));
+        if(duplicado){
+            return true
+        }
         return false;
     },
     

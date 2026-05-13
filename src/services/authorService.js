@@ -19,7 +19,7 @@ class Service{
     static async create(data){
         const id = randomUUID();
         const newAuthor = dto.database({id: id, ...data});
-        
+
         if(!newAuthor.nome.includes(" ")){
             const error = new Error("Autor precisa ter nome e sobrenome");
             error.statusCode = 422;

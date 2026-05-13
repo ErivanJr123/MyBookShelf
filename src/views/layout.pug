@@ -4,7 +4,6 @@ html(lang="pt-br")
     title MyBookShelf
     link(rel="stylesheet", href="/css/style.css")
     style.
-      /* Efeito visual moderno de vibração para quando o erro surge */
       @keyframes shake {
         0% { transform: translateX(0); }
         25% { transform: translateX(-10px); }
@@ -19,16 +18,12 @@ html(lang="pt-br")
       a(href="/books") 📚 Livros
       
     .container
-      // 1. A caixinha de erro global fica centralizada aqui, no topo do conteúdo
       #msg-global-erro(style="display: none; background: #ffcccc; color: #cc0000; border: 1px solid #cc0000; padding: 15px; margin-bottom: 20px; border-radius: 8px;")
       
-      // 2. O conteúdo específico de cada página entra exatamente aqui abaixo
       block content
 
-    // 3. Importação do seu arquivo centralizador de requisições
     script(src="/js/apiClient.js")
     
-    // 4. Código real das funções de exibir e limpar o erro na tela
     script.
       window.mostrarErroGlobal = function(mensagem) {
         const caixa = document.getElementById('msg-global-erro');
