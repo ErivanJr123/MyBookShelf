@@ -1,0 +1,32 @@
+extends layout
+
+block content
+  h1 📚 Meus Livros
+  a.btn.btn-primary(href="/books/new") + Adicionar Livro
+  table#booksTable
+    thead
+      tr
+        th Título
+        th Status
+    tbody
+      // Preenchido via JavaScript
+
+  script.
+    async function loadBooks() {
+      try {
+        const res = await fetch('/api/books');
+        const books = await res.json();
+        const tbody = document.querySelector('#booksTable tbody');
+        
+        books.forEach(book => {
+          tbody.innerHTML += `
+            <tr>
+              <td><a href="/books/${book.id}">${book.titulo}</a></td>
+              <td>${book.status}</td>
+            </tr>`;
+        });
+      } catch (err) {
+        console.error("Erro ao carregar livros:", err);
+      }
+    }
+    loadBooks();

@@ -1,0 +1,15 @@
+extends layout
+
+block content
+  div(style="text-align: center; padding: 50px 0;")
+    h1(style="font-size: 3rem; color: #e74c3c; margin-bottom: 10px;") ⚠️ Erro #{statusCode || '404'}
+    h2(style="color: #2c3e50; margin-bottom: 20px;") Ops! Algo deu errado.
+    
+    // Mostra a mensagem amigável vinda do servidor
+    p(style="background: #fdf2f2; color: #9b1c1c; padding: 15px; border-radius: 8px; display: inline-block; max-width: 500px; border: 1px solid #f8b4b4;") 
+
+      | #{message || 'A página que você está procurando não foi encontrada ou o servidor encontrou um problema.'}
+    
+    br
+    br
+    a.btn.btn-primary(href="/" style="margin-top: 20px; padding: 10px 20px;") 🏠 Voltar para a Home

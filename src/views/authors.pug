@@ -1,0 +1,20 @@
+extends layout
+block content
+  h1 Autores
+  a.btn.btn-primary(href="/authors/new") + Novo Autor
+  table#authorsTable
+    thead
+      tr: th Nome
+    tbody
+      // Preenchido via JS
+
+  script.
+    async function loadAuthors() {
+      const res = await fetch('/api/authors');
+      const authors = await res.json();
+      const tbody = document.querySelector('#authorsTable tbody');
+      authors.forEach(a => {
+        tbody.innerHTML += `<tr><td><a href="/authors/${a.id}">${a.nome}</a></td></tr>`;
+      });
+    }
+    loadAuthors();

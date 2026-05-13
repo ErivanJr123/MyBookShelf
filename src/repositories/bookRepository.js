@@ -5,9 +5,13 @@ export const bookRepository = {
         await db.read();
         return db.data.books;
     },
-    async findbyID(ID){
+    async findByID(ID){
         await db.read();
-        return db.data.books
+        return db.data.books.find(B=>B.id === ID);
+    },
+    async findByAuthorID(authorID){
+        await db.read();
+        return db.data.authors.find(A=>A.id === authorID);
     },
     async create(book){
         db.data.books.push(book);
@@ -30,8 +34,17 @@ export const bookRepository = {
         await db.write();
         return true;
     },
-    async findDuplicate(authorID,title){
+    // serve para testar se há um livro com mesmo título para o mesmo autor
+    async findBookDuplicate(authorID, titulo){
         await db.read();
-        return db.data.books.find(B => B.title === title);
+        const authorBooks = db.data.books.filter(B=>B.authorID === authorID)
+        if(authorBooks.find(B => B.titulo.toLowerCase() === titulo.toLowerCase())){return true}
+        return false;
+    },
+    
+    async findNascimento(authorID){
+        await db.read();
+        const author = db.data.authors.find(A => A.id === authorID);
+        return author.nascimento;
     }
 }

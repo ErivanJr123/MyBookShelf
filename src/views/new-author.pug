@@ -1,0 +1,36 @@
+extends layout
+
+block content
+  h1 ✍️ Cadastrar Novo Autor
+
+  form#authorForm
+    .form-group
+      label Nome Completo:
+      input(name="nome" placeholder="Nome e Sobrenome" required)
+    
+    .form-group
+      label Nacionalidade (Opcional):
+      input(name="nacionalidade" placeholder="Ex: Brasileira")
+      
+    .form-group
+      label Ano de Nascimento:
+      input(type="number" name="nascimento" placeholder="Ex: 1990" required)
+    
+    br
+    button.btn.btn-primary(type="submit") Salvar Autor
+
+  script.
+    document.querySelector('#authorForm').onsubmit = async (e) => {
+        e.preventDefault();
+        window.limparErroGlobal();
+
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData);
+        data.nascimento = parseInt(data.nascimento);
+
+        const resultado = await window.enviarParaAPI('/api/authors', data);
+
+        if (resultado.sucesso) {
+            window.location.href = '/authors';
+        }
+    };

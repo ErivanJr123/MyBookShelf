@@ -1,38 +1,48 @@
-import { body, validationResult } from "express-validator";
-import { authorRepository } from "../repositories/authorRepository.js";
-import { bookRepository } from "../repositories/bookRepository.js";
+import { body,param } from "express-validator";
 
+class bookValidator{
+    static forGetID = [
+        param("id")
+            .isUUID(4)
+            .withMessage("ID inválido")
+    ];
+    static forCreate = [
+        body("titulo")
+            .trim()
+            .notEmpty().withMessage("Titulo obrigatório")
+            .isLength({min:3}).withMessage("o titulo precisa conter no mínimo 3 letras"),
 
-const createBookValidator = [
-    body("titulo")
-        .trim()
-        .notEmpty().withMessage("Titulo obrigatório"),
-    body("publicacao")
-        .notEmpty().withMessage("Ano de publicação obrigatório"),
-    body("status")
-        .trim()
-        .isIn(["Lendo","Lido","Ler"]).withMessage("status da leitura precisa ser: Lendo, Lido ou Ler"),
-    body("autorID")
-        .notEmpty().withMessage("Autor não foi vinculado"),
+        body("publicacao")
+            .trim()
+            .notEmpty().withMessage("Ano de publicação obrigatório")
+            .isInt().withMessage("Ano de publicação inválido")
+            .toInt(),
 
-    async (req,res,next)=>{
-        const erros = validationResult(req);
-        if(!erros.isEmpty()){
-            res.status(400).json({erros: erros.array()});
-        }
-        try {
-            const { autorID, title } = req.body;
-            const existe = await authorRepository.findById(autorID);
-            if(!existe){throw new Error("Autor não encontrado")};
-            const duplicado = await bookRepository.findDuplicate(autorID,title);
-            if(duplicado){throw new Error("Livro já foi cadastrado anteriormente")};
-            next();
-        } catch (erro) {
-            res.status(400).json({erro: erro.message});
-        }
-    }
-];
-class Validator{
-    static create = createBookValidator;
+        body("status")
+            .trim()
+            .isIn(["Lendo","Lido","Ler"]).withMessage("status de leitura precisa ser: Ler, Lendo ou Lido"),
+
+        body("autorID")
+            .trim()
+            .notEmpty().withMessage("ID do autor é obrigatório")
+            .isUUID().withMessage("ID inválido")
+    ];
+    static forUpdate = [
+        body("status")
+            .exists({ checkFalsy:true })
+            .withMessage("O campo status é obrigatório")
+            .trim()
+            .isIn(["Ler","Lendo","Lido"])
+            .withMessage("status de leitura precisa ser: Ler, Lendo ou Lido"),
+        param("id")
+            .isUUID(4)
+            .withMessage("ID inválido")
+    ];
+    static forDelete = [
+        param("id")
+            .isUUID(4)
+            .withMessage("ID inválido")
+    ];
 };
-export default Validator;
+
+export default bookValidator;

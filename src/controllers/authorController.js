@@ -1,27 +1,52 @@
-import { authorRepository } from "../repositories/authorRepository.js";
+import authorService from '../services/authorService.js';
 
 //requisição
 //READ
-export const authorsList = async (req,res) => {
-    res.status(200).json(await authorRepository.getAll()); 
-};
-export const findAuthor = async (req,res) => {
-    const {id} = req.params;
-    const author = await authorRepository.findById(Number(id));
-    if(!author){
-        res.status(404).json({message:"Autor não encontrado"});
+export const authorsList = async (req,res,next) => {
+    try {
+        const authorsList = await authorService.getAll();
+        res.status(200).json(authorsList);
+    } catch (error) {
+        next(error)
     }
-    res.status(200).json(author);
+};
+export const findAuthor = async (req,res,next) => {
+    try {
+        const {id} = req.params;
+        const author = await authorService.findById(id);
+        res.status(200).json(author);        
+    } catch (error) {
+        next(error);
+    }
 };
 //CREATE
-export const addAuthor = async (req,res) => {
-    const newAuthor = {id:Date.now(), ...req.body};
-    await authorRepository.create(newAuthor);
-    res.status(201).json(newAuthor);
+export const addAuthor = async (req,res,next) => {
+    try {
+        const newAuthor = req.body;
+        const authorDTO = await authorService.create(newAuthor);
+        res.status(201).json(authorDTO);
+    } catch (error) {
+        next(error);
+    }
 };
+export const updateAuthor = async (req,res,next) => {
+    try {
+        const { id } = req.params;
+        const { nacionalidade } = req.body;
+        
+        const updateDTO = await authorService.update();
+        res.status(200).json(updateDTO);
+    } catch (error) {
+        next(error)
+    }
+}
 //DELETE
-export const deleteAuthor = async (req,res) => {
-    const {id} = req.params;
-    const removeu = await authorRepository.remove(Number(id));
-    removeu? res.status(204).send(): res.status(404).json({message:"Autor não encontrado"})
+export const deleteAuthor = async (req,res,next) => {
+    try {
+        const {id} = req.params;
+        await authorService.remove(id);
+        res.status(204).send();
+    } catch (error) {
+        next(error);
+    }
 };

@@ -1,0 +1,64 @@
+extends layout
+
+block content
+  h1 📖 Novo Livro
+
+  form#bookForm
+    label Título:
+    input(name="titulo" required)
+    
+    label Ano de Publicação:
+    input(type="number" name="publicacao" required)
+    
+    label Autor:
+    select#authorSelect(name="autorID" required)
+      option(value="") Selecione um autor...
+      
+    label Status de Leitura:
+    select(name="status")
+      option(value="Ler") Ler
+      option(value="Lendo") Lendo
+      option(value="Lido") Lido
+    br
+    button.btn.btn-primary(type="submit") Salvar Livro
+
+  script.
+    async function loadAuthorsAndValidate() {
+      try {
+        const res = await fetch('/api/authors');
+        const authors = await res.json();
+        const select = document.querySelector('#authorSelect');
+
+        if (!authors || authors.length === 0) {
+          window.mostrarErroGlobal("Você precisa cadastrar um autor antes de adicionar um livro. Redirecionando...");
+          setTimeout(() => { window.location.href = '/authors/new'; }, 2500);
+          return; 
+        }
+
+        authors.forEach(a => {
+          const option = document.createElement('option');
+          option.value = a.id;
+          option.textContent = a.nome;
+          select.appendChild(option);
+        });
+      } catch (err) {
+        console.error("Erro ao carregar autores:", err);
+      }
+    }
+
+    document.querySelector('#bookForm').onsubmit = async (e) => {
+      e.preventDefault();
+      window.limparErroGlobal();
+      
+      const formData = new FormData(e.target);
+      const data = Object.fromEntries(formData);
+      data.publicacao = parseInt(data.publicacao);
+
+      const resultado = await window.enviarParaAPI('/api/books', data);
+
+      if (resultado.sucesso) {
+        window.location.href = '/books';
+      }
+    };
+
+    loadAuthorsAndValidate();

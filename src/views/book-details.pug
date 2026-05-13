@@ -1,0 +1,40 @@
+extends layout
+
+block content
+  h1#bookTitle Carregando...
+  p#bookInfo
+  
+  label Mudar Status:
+  select#statusSelect
+    option(value="Ler") Ler
+    option(value="Lendo") Lendo
+    option(value="Lido") Lido
+    
+  script.
+    const bookId = window.location.pathname.split('/').pop();
+
+    async function loadBook() {
+      try {
+        const res = await fetch(`/api/books/${bookId}`);
+        const book = await res.json();
+        document.querySelector('#bookTitle').innerText = book.titulo;
+        document.querySelector('#bookInfo').innerText = `Ano: ${book.publicacao}`;
+        document.querySelector('#statusSelect').value = book.status;
+      } catch (err) {
+        console.error("Erro ao carregar detalhes do livro:", err);
+      }
+    }
+
+    document.querySelector('#statusSelect').onchange = async (e) => {
+      window.limparErroGlobal();
+      const data = { status: e.target.value };
+      
+      const resultado = await window.enviarParaAPI(`/api/books/${bookId}`, data, 'PATCH');
+      
+      if (resultado.sucesso) {
+        alert('Status atualizado com sucesso!');
+      }
+    };
+
+    loadBook();
+

@@ -1,6 +1,6 @@
 {
   "name": "mybookshelf",
-  "version": "1.0.2",
+  "version": "1.1.6",
   "description": "API Estante de Livros",
   "homepage": "https://github.com/ErivanJr123/MyBookShelf#readme",
   "bugs": {
@@ -21,6 +21,7 @@
   "dependencies": {
     "express": "^5.2.1",
     "express-validator": "^7.3.2",
-    "lowdb": "^7.0.1"
+    "lowdb": "^7.0.1",
+    "pug": "^3.0.4"
   }
 }
