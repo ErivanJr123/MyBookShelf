@@ -4,7 +4,7 @@ class Validator{
     static forGetID = [
         param("id")
             .isUUID(4)
-            .withMessage("ID inválido")
+            .withMessage("Rota inválida")
     ];
     static forCreate = [
         body("nome")
@@ -18,9 +18,16 @@ class Validator{
             .toInt()
     ];
     static forUpdate = [
+        body("nome")
+            .trim()
+            .optional({checkFalsy: true}),
         body("nacionalidade")
             .trim()
-            .escape()
+            .optional({checkFalsy: true})
+            .escape(),
+        body("nascimento")
+            .optional({checkFalsy: true})
+            .toInt()
     ];
     static forDelete = [
         param("id")

@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { authorRepository } from "../repositories/authorRepository.js";
+import { bookRepository } from "../repositories/bookRepository.js";
 import dto from '../dtos/authorDTO.js';
 
 class Service{
@@ -18,32 +19,49 @@ class Service{
     }
     static async create(data){
         const id = randomUUID();
-        const newAuthor = dto.database({id: id, ...data});
+        const authorClean = dto.database({id: id, ...data});
 
-        if(!newAuthor.nome.includes(" ")){
+        if(!authorClean.nome.includes(" ")){
             const error = new Error("Autor precisa ter nome e sobrenome");
             error.statusCode = 422;
             throw error;
         }
-        const autorCriado = await authorRepository.create(newAuthor);
-        if(!autorCriado){
-            const error = new Error("Autor já foi cadastrado anteriormente");
+        if(await authorRepository.findByName(authorClean.nome)){
+            const error = new Error("Autor já foi cadastrado");
             error.statusCode = 409;
             throw error;
         }
-        return dto.response(autorCriado);
+        const newAuthor = await authorRepository.create(authorClean);
+        return dto.response(newAuthor);
     }
     static async update(ID,update){
-        const { nacionalidade } = dto.database(update);
-        const updated = await authorRepository.update(ID, nacionalidade);
-        if(!updated){
+        const author = await authorRepository.findById(ID)
+        if(!author){
             const error = new Error("Autor não encontrado");
             error.statusCode = 404;
             throw error;
         }
+        const updateClean = dto.update(update);
+        if(updateClean.nome){
+            if(!updateClean.nome.includes(" ")){
+                const error = new Error("Autor precisa ter nome e sobrenome");
+                error.statusCode = 422;
+                throw error;
+            };
+            if(author.nome !== updateClean.nome){
+                const duplicate = await authorRepository.findByName(updateClean.nome);
+                if(duplicate){
+                    const error = new Error("Autor já foi cadastrado");
+                    error.statusCode = 409;
+                    throw error;
+                }
+            }
+        }
+        const updated = await authorRepository.update(ID,updateClean);
+        return dto.response(updated);
     }
     static async remove(ID){
-        const works = await authorRepository.contByAuthorID(ID);
+        const works = await bookRepository.contByAuthorID(ID);
         if(works>0){
             const error = new Error("Não é permitido remover o autor enquanto ainda há livros em seu nome");
             error.statusCode = 422;

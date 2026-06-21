@@ -1,0 +1,110 @@
+extends layout
+
+block content
+  .auth-wrapper(style="max-width: 400px; margin: 50px auto; padding: 25px; border: 1px solid #ddd; border-radius: 8px; background: #fff; box-shadow: 0 4px 6px rgba(0,0,0,0.05);")
+    .auth-card
+      h2(style="text-align: center; margin-bottom: 5px; color: #2c3e50;") Criar Conta
+      p.auth-subtitle(style="text-align: center; color: #666; margin-bottom: 25px; font-size: 0.95rem;") Cadastre-se para gerenciar sua estante de leituras
+      
+      form#form-register.auth-form(novalidate)
+        .form-group(style="margin-bottom: 15px;")
+          label(for="nome" style="display: block; margin-bottom: 5px; font-weight: bold; color: #34495e;") Nome:
+          input#nome(type="text" name="nome" placeholder="Como prefere ser chamado" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;")
+          //- Caixa de erro do campo Nome
+          span#err-nome(style="display: none; color: #dc3545; font-size: 0.8rem; font-weight: bold; margin-top: 5px;")
+
+        .form-group(style="margin-bottom: 15px;")
+          label(for="email" style="display: block; margin-bottom: 5px; font-weight: bold; color: #34495e;") E-mail:
+          input#email(type="email" name="email" placeholder="seu.email@exemplo.com" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;")
+          //- Caixa de erro do campo E-mail
+          span#err-email(style="display: none; color: #dc3545; font-size: 0.8rem; font-weight: bold; margin-top: 5px;")
+
+        .form-group(style="margin-bottom: 15px;")
+          label(for="login" style="display: block; margin-bottom: 5px; font-weight: bold; color: #34495e;") Usuário / Login:
+          input#login(type="text" name="login" placeholder="Escolha um nome de usuário" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;")
+          //- Caixa de erro do campo Login
+          span#err-login(style="display: none; color: #dc3545; font-size: 0.8rem; font-weight: bold; margin-top: 5px;")
+        
+        .form-group(style="margin-bottom: 25px;")
+          label(for="senha" style="display: block; margin-bottom: 5px; font-weight: bold; color: #34495e;") Senha:
+          input#senha(type="password" name="senha" placeholder="Crie uma senha segura" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;")
+          //- Caixa de erro do campo Senha
+          span#err-senha(style="display: none; color: #dc3545; font-size: 0.8rem; font-weight: bold; margin-top: 5px;")
+        
+        button#btn-cadastrar(type="submit" style="width: 100%; padding: 12px; font-weight: bold; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem;") Cadastrar
+        
+      .auth-footer(style="text-align: center; margin-top: 20px; font-size: 0.9rem; border-top: 1px solid #eee; padding-top: 15px;")
+        p(style="margin: 0; color: #555;") Já possui uma conta? #[a(href="/login" style="color: #007bff; text-decoration: none; font-weight: bold;") Faça o login aqui]
+
+  script.
+    document.getElementById('form-register').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      // Limpa erros anteriores do topo e dos campos individuais antes de testar
+      if (typeof window.limparErroGlobal === 'function') window.limparErroGlobal();
+      document.querySelectorAll('.form-group span').forEach(span => span.style.display = 'none');
+
+      const botao = document.getElementById('btn-cadastrar');
+      botao.innerText = 'Processando...';
+      botao.disabled = true;
+
+      const formData = new FormData(e.target);
+      const data = Object.fromEntries(formData.entries());
+
+      try {
+        const respostaRaw = await fetch('/api/users/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+
+        const resultado = await respostaRaw.json().catch(() => ({}));
+
+        // Se a validação do express-validator (handleValidation) ou banco barrar
+        if (!respostaRaw.ok) {
+          const mensagemErro = resultado.message || 'Erro ao realizar o cadastro.';
+
+          // Identifica qual campo falhou baseando-se no padrão "CAMPO: mensagem" do seu handleValidation
+          const partes = mensagemErro.split(':');
+          
+          if (partes.length > 1) {
+            const campoPrejudicado = partes[0].trim().toLowerCase(); // Ex: "senha", "email", "login", "nome"
+            const textoDoErro = partes[1].trim(); // A mensagem do seu validator
+            
+            const elementoErro = document.getElementById(`err-${campoPrejudicado}`);
+            const inputElemento = document.getElementById(campoPrejudicado);
+            
+            if (elementoErro) {
+              elementoErro.innerText = `⚠️ ${textoDoErro}`;
+              elementoErro.style.display = 'block';
+              if (inputElemento) inputElemento.style.borderColor = '#dc3545'; // Borda vermelha no input
+              
+              botao.innerText = 'Cadastrar';
+              botao.disabled = false;
+              return; // Para o fluxo e mostra o erro sob o campo correto
+            }
+          }
+
+          // Fallback: Se o erro não for de campo (ex: erro 500 do banco), joga na caixa do topo
+          if (window.mostrarErroGlobal) {
+            window.mostrarErroGlobal(mensagemErro);
+          }
+
+          botao.innerText = 'Cadastrar';
+          botao.disabled = false;
+          return;
+        }
+
+        // Fluxo de Sucesso legítimo
+        alert('Conta criada com sucesso! Você será redirecionado para a tela de login.');
+        window.location.href = '/login';
+
+      } catch (erro) {
+        console.error('Erro no script de cadastro:', erro);
+        if (window.mostrarErroGlobal) {
+          window.mostrarErroGlobal('Não foi possível conectar ao servidor.');
+        }
+        botao.innerText = 'Cadastrar';
+        botao.disabled = false;
+      }
+    });

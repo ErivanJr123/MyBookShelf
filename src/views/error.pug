@@ -1,15 +1,19 @@
 extends layout
 
 block content
-  div(style="text-align: center; padding: 50px 0;")
-    h1(style="font-size: 3rem; color: #e74c3c; margin-bottom: 10px;") ⚠️ Erro #{statusCode || '404'}
-    h2(style="color: #2c3e50; margin-bottom: 20px;") Ops! Algo deu errado.
+  div(style="text-align: center; padding: 60px 0; max-width: 600px; margin: 0 auto;")
+    h1(style="font-size: 3.5rem; color: #e74c3c; margin-top: 0; margin-bottom: 10px;") ⚠️ Erro #{statusCode || '404'}
+    h2(style="color: #2c3e50; margin-bottom: 25px; font-size: 1.6rem;") Ops! Algo deu errado no servidor.
     
-    // Mostra a mensagem amigável vinda do servidor
-    p(style="background: #fdf2f2; color: #9b1c1c; padding: 15px; border-radius: 8px; display: inline-block; max-width: 500px; border: 1px solid #f8b4b4;") 
+    //- Mostra a mensagem amigável que foi capturada e enviada pelo middleware do seu Express
+    .error-box(style="background: #fdf2f2; color: #9b1c1c; padding: 20px; border-radius: 8px; border: 1px solid #f8b4b4; margin-bottom: 35px; line-height: 1.6; text-align: left; font-size: 0.95rem;")
+      strong Mensagem do Sistema: 
+      span #{message || 'A página que você está procurando não foi encontrada ou o servidor encontrou um problema inesperado.'}
+    
+    a.btn.btn-primary(href="/" style="padding: 12px 25px; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 1rem; display: inline-block; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: background 0.2s;") 🏠 Voltar para a Home
 
-      | #{message || 'A página que você está procurando não foi encontrada ou o servidor encontrou um problema.'}
-    
-    br
-    br
-    a.btn.btn-primary(href="/" style="margin-top: 20px; padding: 10px 20px;") 🏠 Voltar para a Home
+  script.
+    // Garante que qualquer resquício de animação de erro global anterior seja limpo ao cair aqui
+    if (typeof window.limparErroGlobal === 'function') {
+      window.limparErroGlobal();
+    }

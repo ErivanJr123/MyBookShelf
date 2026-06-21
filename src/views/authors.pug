@@ -1,20 +1,176 @@
 extends layout
+
 block content
-  h1 ✍🏻 Autores
-  a.btn.btn-primary(href="/authors/new") + Novo Autor
-  table#authorsTable
-    thead
-      tr: th Nome
-    tbody
-      // Preenchido via JS
+  //- Injetamos a mesma classe de fôlego aqui para alinhar a listagem de autores em 3 colunas
+  script.
+    document.querySelector('.container')?.classList.add('wide-layout');
+
+  .authors-page
+    .page-header(style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 2px solid #eee; padding-bottom: 15px;")
+      h1(style="margin: 0;") ✍️ Autores
+      a#btn-add-author.btn.btn-primary(href="/authors/new" style="display: none; padding: 10px 15px; background: #007bff; color: white; text-decoration: none; border-radius: 4px; font-weight: bold;") + Novo Autor
+
+    #authors-grid
+      .loading-state Carregando autores...
 
   script.
     async function loadAuthors() {
-      const res = await fetch('/api/authors');
-      const authors = await res.json();
-      const tbody = document.querySelector('#authorsTable tbody');
-      authors.forEach(a => {
-        tbody.innerHTML += `<tr><td><a href="/authors/${a.id}">${a.nome}</a></td></tr>`;
+      const papel = localStorage.getItem('papel'); 
+      const token = localStorage.getItem('token');
+      const userId = localStorage.getItem('id');
+      const grid = document.querySelector('#authors-grid');
+      
+      if (papel === 'admin') {
+        document.getElementById('btn-add-author').style.display = 'block';
+      }
+
+      const resultado = await window.enviarParaAPI('/api/authors', null, 'GET');
+      grid.innerHTML = '';
+
+      const listaAutores = resultado?.dados || resultado?.autores || (Array.isArray(resultado) ? resultado : null);
+
+      if (!listaAutores || listaAutores.length === 0) {
+        grid.innerHTML = '<p style="color: #666;">Nenhum autor cadastrado na biblioteca.</p>';
+        return;
+      }
+
+      listaAutores.forEach(a => {
+        const card = document.createElement('div');
+        card.className = 'author-card';
+        card.setAttribute('data-id', a.id);
+        
+        card.style = `
+          border: 1px solid #ddd; 
+          padding: 20px; 
+          border-radius: 8px; 
+          width: calc(33.33% - 14px); 
+          min-width: 280px; 
+          background: #fff; 
+          box-shadow: 0 4px 6px rgba(0,0,0,0.05); 
+          cursor: pointer; 
+          transition: all 0.3s ease;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+        `;
+
+        card.innerHTML = `
+          <div class="card-summary">
+            <h3 style="margin: 0 0 10px 0; color: #2c3e50; font-size: 1.25rem;">${a.nome}</h3>
+            <p style="margin: 0 0 5px 0; color: #7f8c8d; font-size: 0.95rem;">🌍 Nacionalidade: ${a.nacionalidade || 'Não informada'}</p>
+          </div>
+          <div class="card-details" style="display: none; margin-top: 15px; padding-top: 15px; border-top: 1px solid #eee; font-size: 0.9rem; color: #34495e;">
+            <p style="margin: 0 0 15px 0;"><strong>📅 Nascimento:</strong> ${a.nascimento || 'Não informado'}</p>
+            <div class="author-books-section" style="margin-top: 10px; margin-bottom: 20px;">
+              <strong style="display: block; margin-bottom: 8px; color: #2c3e50;">📚 Catálogo de Obras:</strong>
+              
+              <!-- Estilização customizada da barra de rolagem sutil e esbranquiçada -->
+              <div class="books-container" style="display: flex; flex-direction: column; gap: 10px; max-height: 125px; overflow-y: auto; padding-right: 4px; box-sizing: border-box; scrollbar-width: thin; scrollbar-color: #f0f0f0 transparent;">Carregando livros...</div>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center; border-top: 1px solid #f0f0f0; padding-top: 12px;">
+              <a class="btn-edit-author" href="/authors/edit/${a.id}" style="display: ${papel === 'admin' ? 'block' : 'none'}; flex: 1; text-align: center; padding: 6px; border: 1px solid #f0ad4e; background: #f0ad4e; color: white; border-radius: 4px; text-decoration: none; font-weight: bold; font-size: 0.85rem;">Editar Dados</a>
+              <button class="btn-delete-author" style="display: ${papel === 'admin' ? 'block' : 'none'}; flex: 1; padding: 6px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.85rem;">Excluir Autor</button>
+            </div>
+          </div>
+        `;
+
+        const styleSheet = document.createElement("style");
+        styleSheet.innerText = `
+          .books-container::-webkit-scrollbar { width: 4px; }
+          .books-container::-webkit-scrollbar-track { background: transparent; }
+          .books-container::-webkit-scrollbar-thumb { background: #f3f3f3; border-radius: 4px; }
+          .books-container::-webkit-scrollbar-thumb:hover { background: #e0e0e0; }
+        `;
+        document.head.appendChild(styleSheet);
+
+        card.addEventListener('mouseenter', () => card.style.transform = 'translateY(-4px)');
+        card.addEventListener('mouseleave', () => card.style.transform = 'translateY(0)');
+
+        card.addEventListener('click', async (e) => {
+          if (e.target.classList.contains('btn-delete-author') || e.target.classList.contains('btn-edit-author') || e.target.classList.contains('btn-add-to-shelf')) return;
+
+          const detailsBlock = card.querySelector('.card-details');
+          const booksWrapper = card.querySelector('.books-container');
+
+          if (detailsBlock.style.display === 'none') {
+            detailsBlock.style.display = 'block';
+            
+            if (booksWrapper.getAttribute('data-loaded') !== 'true') {
+              const livrosResultado = await window.enviarParaAPI(`/api/books?autorID=${a.id}`, null, 'GET');
+              
+              if (livrosResultado) {
+                const authorBooks = livrosResultado.dados || livrosResultado.livros || (Array.isArray(livrosResultado) ? livrosResultado : []);
+                booksWrapper.innerHTML = '';
+                
+                if (authorBooks.length === 0) {
+                  booksWrapper.innerHTML = '<span style="color: #888; font-style: italic;">Nenhum livro vinculado a este autor.</span>';
+                } else {
+                  authorBooks.forEach(b => {
+                    const row = document.createElement('div');
+                    row.style = `
+                      display: flex; 
+                      flex-direction: column; 
+                      gap: 8px; 
+                      padding: 10px; 
+                      background: #f8f9fa; 
+                      border-radius: 6px; 
+                      border: 1px solid #e9ecef;
+                      box-sizing: border-box;
+                    `;
+                    
+                    // MODIFICADO: Botão mantido na mesma linha dos dados, mas com formato quadrado, 
+                    // texto enxuto para apenas "+" e paddings reduzidos para caber perfeitamente.
+                    row.innerHTML = `
+                      <div style="width: 100%;">
+                        <span style="font-weight: bold; color: #2c3e50; font-size: 1rem; display: block; line-height: 1.2; word-break: break-word;">${b.titulo}</span>
+                      </div>
+                      <div style="display: flex; justify-content: space-between; align-items: center; gap: 5px; width: 100%;">
+                        <div style="display: flex; gap: 10px; font-size: 0.78rem; color: #5f5e5e; font-weight: 500;">
+                          <span style="display: inline-block; width: 80px; white-space: nowrap;">📅 Ano: ${b.publicacao || 'N/I'}</span>
+                          <span style="display: inline-block; width: 80px; white-space: nowrap;">📚 Cópias: ${b.exemplar || 1}</span>
+                        </div>
+                        <button class="btn-add-to-shelf" data-book-id="${b.id}" style="display: ${token ? 'inline-flex' : 'none'}; justify-content: center; align-items: center; width: 28px; height: 28px; padding: 0; background: #28a745; color: white; border: none; border-radius: 4px; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: background 0.2s; box-sizing: border-box; flex-shrink: 0;" title="Adicionar à estante">+</button>
+                      </div>
+                    `;
+                    
+                    row.querySelector('.btn-add-to-shelf').addEventListener('click', async (event) => {
+                      event.stopPropagation();
+                      if (window.limparErroGlobal) window.limparErroGlobal();
+                      
+                      const resultadoShelf = await window.enviarParaAPI(`/api/users/${userId}/shelf`, { bookID: b.id }, 'POST');
+                      if (resultadoShelf && resultadoShelf.sucesso !== false) {
+                        alert(`"${b.titulo}" foi adicionado com sucesso à sua Estante Pessoal!`);
+                      }
+                    });
+
+                    booksWrapper.appendChild(row);
+                  });
+                }
+              } else {
+                booksWrapper.innerHTML = '<span style="color: #dc3545;">Erro ao buscar acervo.</span>';
+              }
+              booksWrapper.setAttribute('data-loaded', 'true');
+            }
+          } else {
+            detailsBlock.style.display = 'none';
+          }
+        });
+
+        card.querySelector('.btn-delete-author').addEventListener('click', async (e) => {
+          e.stopPropagation(); 
+          if (window.limparErroGlobal) window.limparErroGlobal();
+          if (!confirm(`Deseja realmente excluir o autor "${a.nome}"?\nIsso só funcionará se ele não possuir livros vinculados.`)) return;
+          
+          const resDelete = await window.enviarParaAPI(`/api/authors/${a.id}`, null, 'DELETE');
+          
+          if (resDelete && resDelete.sucesso !== false) {
+            card.remove();
+            alert('Autor removido com sucesso!');
+          }
+        });
+
+        grid.appendChild(card);
       });
     }
-    loadAuthors();
+
+    document.addEventListener('DOMContentLoaded', loadAuthors);

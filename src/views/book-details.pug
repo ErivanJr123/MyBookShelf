@@ -1,55 +1,88 @@
 extends layout
 
 block content
-  h1#bookTitle Carregando...
-  p#bookInfo
-  
-  #acoesContainer(style="display: flex; flex-direction: column; align-items: flex-start; gap: 10px; margin-top: 15px;")
-    div
-      label(for="statusSelect" style="margin-right: 5px;") Mudar Status:
-      select#statusSelect
-        option(value="Ler") Ler
-        option(value="Lendo") Lendo
-        option(value="Lido") Lido
+  .details-wrapper(style="max-width: 600px; margin: 30px auto; padding: 25px; border: 1px solid #ddd; border-radius: 8px; background: #fff; box-shadow: 0 4px 6px rgba(0,0,0,0.05);")
+    h1#bookTitle(style="margin-top: 0; color: #2c3e50;") Carregando...
     
-    button#btnExcluir(style="background-color: #dc3545; color: white; border: none; padding: 5px 10px; cursor: pointer; border-radius: 4px;") Remover Livro
-    
+    #bookInfo(style="margin: 20px 0; font-size: 1.1rem; line-height: 1.6; color: #34495e;")
+      p Carregando informações complementares...
+      
+    #acoesContainer(style="display: flex; flex-direction: column; align-items: flex-start; gap: 15px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee;")
+      button#btnAdicionarEstante(style="display: none; background-color: #007bff; color: white; border: none; padding: 8px 16px; cursor: pointer; border-radius: 4px; font-weight: bold;") 📌 Adicionar à Minha Estante
+      button#btnExcluir(style="display: none; background-color: #dc3545; color: white; border: none; padding: 8px 16px; cursor: pointer; border-radius: 4px; font-weight: bold;") 🗑️ Remover Livro do Acervo
+
+    div(style="margin-top: 25px; padding-top: 15px; border-top: 1px solid #eee;")
+      a.btn.btn-secondary(href="/books" style="text-decoration: none; padding: 8px 16px; border: 1px solid #ccc; border-radius: 4px; color: #333; font-weight: bold; font-size: 0.9rem;") ⬅️ Voltar para a Biblioteca
+
   script.
     const bookId = window.location.pathname.split('/').pop();
 
     async function loadBook() {
-      try {
-        const res = await fetch(`/api/books/${bookId}`);
-        const book = await res.json();
-        document.querySelector('#bookTitle').innerText = book.titulo;
-        document.querySelector('#bookInfo').innerText = `Ano: ${book.publicacao}`;
-        document.querySelector('#statusSelect').value = book.status;
-      } catch (err) {
-        console.error("Erro ao carregar detalhes do livro:", err);
+      const papel = localStorage.getItem('papel');
+      const token = localStorage.getItem('token');
+
+      if (token) {
+        document.querySelector('#btnAdicionarEstante').style.display = 'block';
+      }
+
+      if (papel === 'admin') {
+        document.querySelector('#btnExcluir').style.display = 'block';
+      }
+
+      // 1. Busca o livro usando a nossa central de requisições automática
+      const resultadoLivro = await window.enviarParaAPI(`/api/books/${bookId}`, null, 'GET');
+      
+      if (resultadoLivro) {
+        // Trata o encapsulamento estruturado (.dados) vindo do backend
+        const book = resultadoLivro.dados || resultadoLivro;
+        
+        document.querySelector('#bookTitle').innerText = book.titulo || 'Livro Sem Título';
+        
+        let autorNome = 'Buscando autor...';
+        if (book.autorID) {
+          // 2. Busca o autor correspondente também através da central de segurança
+          const resultadoAutor = await window.enviarParaAPI(`/api/authors/${book.autorID}`, null, 'GET');
+          if (resultadoAutor) {
+            const authorData = resultadoAutor.dados || resultadoAutor;
+            autorNome = authorData.nome || 'Nome não identificado';
+          } else {
+            autorNome = 'Não encontrado';
+          }
+        }
+
+        document.querySelector('#bookInfo').innerHTML = `
+          <p style="margin: 5px 0;"><strong>✍️ Autor:</strong> ${autorNome}</p>
+          <p style="margin: 5px 0;"><strong>📅 Ano de Publicação:</strong> ${book.publicacao || 'Não informado'}</p>
+          <p style="margin: 5px 0;"><strong>📚 Cópias no Acervo Geral:</strong> ${book.exemplar || 1}</p>
+        `;
+      } else {
+        if (window.mostrarErroGlobal) window.mostrarErroGlobal("Erro ao carregar os detalhes do livro.");
       }
     }
 
-    document.querySelector('#statusSelect').onchange = async (e) => {
-      window.limparErroGlobal();
-      const data = { status: e.target.value };
+    // Ação privada: Adiciona o livro enviando a chave 'bookID' exata exigida pelo backend
+    document.querySelector('#btnAdicionarEstante').onclick = async () => {
+      if (window.limparErroGlobal) window.limparErroGlobal();
+      const userId = localStorage.getItem('id');
       
-      const resultado = await window.enviarParaAPI(`/api/books/${bookId}`, data, 'PATCH');
+      const resultado = await window.enviarParaAPI(`/api/users/${userId}/shelf`, { bookID: bookId }, 'POST');
       
-      if (resultado.sucesso) {
-        alert('Status atualizado com sucesso!');
+      if (resultado && resultado.sucesso !== false) {
+        alert('Livro adicionado à sua estante pessoal com sucesso!');
       }
     };
 
+    // Ação administrativa: Remove o livro do catálogo público
     document.querySelector('#btnExcluir').onclick = async () => {
-      window.limparErroGlobal();
+      if (window.limparErroGlobal) window.limparErroGlobal();
       
-      const confirmar = confirm("Tem certeza que deseja remover este livro da estante?");
+      const confirmar = confirm("Tem certeza que deseja remover este livro permanentemente?");
       if (!confirmar) return;
 
-      const resultado = await window.enviarParaAPI(`/api/books/${bookId}`, {}, 'DELETE');
+      const resultado = await window.enviarParaAPI(`/api/books/${bookId}`, null, 'DELETE');
       
-      if (resultado.sucesso) {
-        alert('Livro removido com sucesso!');
+      if (resultado && resultado.sucesso !== false) {
+        alert('Livro removido do acervo com sucesso!');
         window.location.href = '/books';
       }
     };

@@ -1,0 +1,69 @@
+extends layout
+
+block content
+  .form-wrapper(style="max-width: 500px; margin: 40px auto; padding: 25px; border: 1px solid #ddd; border-radius: 8px; background: #fff; box-shadow: 0 4px 6px rgba(0,0,0,0.05);")
+    h2(style="color: #2c3e50; margin-bottom: 20px; text-align: center;") ✍️ Editar Autor
+    p.subtitle(style="color: #666; margin-bottom: 20px; text-align: center; font-size: 0.95rem;") Modifique os dados cadastrais do autor selecionado.
+
+    form#form-edit-author(novalidate)
+      .form-group(style="margin-bottom: 15px;")
+        label(for="nome" style="display: block; margin-bottom: 5px; font-weight: bold; color: #34495e;") Nome do Autor:
+        input#nome(type="text" name="nome" required style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;")
+      
+      .form-group(style="margin-bottom: 15px;")
+        label(for="nacionalidade" style="display: block; margin-bottom: 5px; font-weight: bold; color: #34495e;") Nacionalidade:
+        input#nacionalidade(type="text" name="nacionalidade" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;")
+      
+      .form-group(style="margin-bottom: 25px;")
+        label(for="nascimento" style="display: block; margin-bottom: 5px; font-weight: bold; color: #34495e;") Ano de Nascimento:
+        input#nascimento(type="number" name="nascimento" required style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;")
+      
+      .form-actions(style="display: flex; gap: 10px; margin-top: 25px;")
+        button#btn-salvar(type="submit" style="flex: 1; padding: 12px; font-weight: bold; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem;") Salvar Alterações
+        a.btn.btn-cancel(href="/authors" style="padding: 12px 20px; background: #e0e0e0; color: #333; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 0.9rem; text-align: center;") Cancelar
+
+  script.
+    document.addEventListener('DOMContentLoaded', async () => {
+      const urlPartes = window.location.pathname.split('/');
+      const autorId = urlPartes[urlPartes.length - 1];
+
+      if (!autorId) {
+        window.mostrarErroGlobal('ID do autor não identificado na URL.');
+        return;
+      }
+
+      const resultado = await window.enviarParaAPI(`/api/authors/${autorId}`, null, 'GET');
+      
+      if (resultado) {
+        const autor = resultado.dados || resultado;
+        document.getElementById('nome').value = autor.nome || '';
+        document.getElementById('nacionalidade').value = autor.nacionalidade || '';
+        document.getElementById('nascimento').value = autor.nascimento || '';
+      } else {
+        window.mostrarErroGlobal('Não foi possível carregar os dados originais do autor.');
+      }
+
+      document.getElementById('form-edit-author').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (window.limparErroGlobal) window.limparErroGlobal();
+
+        const botao = document.getElementById('btn-salvar');
+        botao.innerText = 'Salvando...';
+        botao.disabled = true;
+
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData.entries());
+        
+        if (data.nascimento) data.nascimento = parseInt(data.nascimento, 10);
+
+        const respostaUpdate = await window.enviarParaAPI(`/api/authors/${autorId}`, data, 'PATCH');
+
+        if (respostaUpdate && respostaUpdate.sucesso !== false) {
+          alert('Autor updated com sucesso!');
+          window.location.href = '/authors';
+        } else {
+          botao.innerText = 'Salvar Alterações';
+          botao.disabled = false;
+        }
+      });
+    });

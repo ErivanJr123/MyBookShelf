@@ -6,7 +6,7 @@ class BookDTO{
             id: data.id,
             titulo: normalize.Titulo(data.titulo),
             publicacao: data.publicacao,
-            status: data.status,
+            exemplar: data.exemplar ?? 1,
             autorID: data.autorID
         }
     }
@@ -15,9 +15,15 @@ class BookDTO{
             id: obj.id,
             titulo: obj.titulo,
             publicacao: obj.publicacao,
-            status: obj.status,
+            exemplar: obj.exemplar,
             autorID: obj.autorID
         }
+    }
+    static update(data){
+        const allowedFields = ["titulo", "publicacao","exemplar"];
+        const cleanData = {};
+        allowedFields.forEach(F => {if(data[F] !== undefined) cleanData[F] = data[F]});
+        return cleanData;
     }
 }
 

@@ -1,7 +1,14 @@
 import app from './app.js';
+import conectarBanco from './config/db.js';
+import 'dotenv/config';
+const PORTA = process.env.PORT || 3000;
 
-app.listen(3000,()=>{
-    console.log("🚀 servidor ligado http://localhost:3000");
-    console.log("✍️ Lista de autores http://localhost:3000/api/authors");
-    console.log("📖 Estante de Livros http://localhost:3000/api/books");
+if(process.env.NODE_ENV === "production"){
+    conectarBanco();
+}else{
+    console.log("Servido rodando localmente com lowDB.");
+}
+
+app.listen(PORTA,()=>{
+    console.log(`🚀 servidor ligado na porta ${PORTA}`);
 });

@@ -1,0 +1,205 @@
+extends layout
+
+block content
+  .profile-layout(style="display: flex; gap: 30px; margin-top: 20px; align-items: flex-start;")
+    
+    //- Lateral Esquerda: Informações do Usuário com Nome, Login e E-mail corrigidos
+    aside.profile-sidebar(style="flex: 1; min-width: 250px; background: #f8f9fa; border: 1px solid #e9ecef; padding: 20px; border-radius: 8px;")
+      .user-avatar-placeholder(style="font-size: 3rem; text-align: center; margin-bottom: 10px;") 👤
+      
+      //- O dado principal e maior agora será o Nome do usuário
+      h2#user-display-name(style="text-align: center; margin: 0 0 5px 0; font-size: 1.4rem; color: #2c3e50; word-break: break-word;") Carregando nome...
+      
+      //- O login menor fica logo abaixo com o símbolo @
+      p#user-login(style="text-align: center; color: #666; margin: 0 0 10px 0; font-size: 0.9rem;") @...
+      
+      //- Divisão para o E-mail de contato do usuário
+      #user-email-container(style="text-align: center; color: #7f8c8d; margin: 0 0 15px 0; font-size: 0.85rem; border-bottom: 1px solid #ddd; padding-bottom: 15px;")
+        span  
+        span#user-email ...
+      
+      .user-details(style="padding-top: 5px; margin-bottom: 20px; font-size: 0.95rem;")
+        p(style="margin: 5px 0; text-align: center;") #[strong 🛡️ Vínculo:] <span id="user-role">-</span>
+      
+      div(style="display: flex; flex-direction: column; gap: 10px;")
+        a#btn-edit-profile.btn.btn-edit-profile(href="/profile/edit" style="display: block; text-align: center; padding: 8px; background: #007bff; color: white; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 0.9rem;") ⚙️ Editar Cadastro
+        button#btn-delete-own-account(style="display: block; width: 100%; padding: 8px; background: #dc3545; color: white; border: none; border-radius: 4px; font-weight: bold; font-size: 0.9rem; cursor: pointer;") 🗑️ Excluir Minha Conta
+
+    //- Área Direita: Listagem e Controle de Status por 3 Botões
+    main.shelf-content(style="flex: 3;")
+      .shelf-header(style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 20px;")
+        h3(style="margin: 0;") 📚 Minha Estante Pessoal
+        span#book-count.book-count(style="background: #e9ecef; padding: 4px 10px; border-radius: 20px; font-size: 0.85rem; font-weight: bold;") 0 livro(s)
+      
+      #shelf-container
+        .loading-state Carregando sua estante...
+
+  script.
+    document.addEventListener('DOMContentLoaded', async () => {
+      const userId = localStorage.getItem('id');
+      const papelLocal = localStorage.getItem('papel'); 
+      if (!userId) return;
+
+      // 1. CARREGA OS DADOS DO USUÁRIO CONECTADO (GET /api/users/:id)
+      const resultadoUsuario = await window.enviarParaAPI(`/api/users/${userId}`, null, 'GET');
+      if (resultadoUsuario) {
+        const user = resultadoUsuario.dados || resultadoUsuario;
+        
+        // Alimenta as tags HTML com o retorno exato do UserDTO.detailedResponse
+        document.getElementById('user-display-name').innerText = user.nome || 'Leitor Sem Nome';
+        document.getElementById('user-login').innerText = `@${user.login || 'usuario'}`;
+        document.getElementById('user-email').innerText = user.email || 'Não informado';
+        document.getElementById('user-role').innerText = (papelLocal || 'usuario').toUpperCase();
+      }
+
+      // 2. AÇÃO DE EXCLUIR A PRÓPRIA CONTA
+      document.getElementById('btn-delete-own-account').addEventListener('click', async () => {
+        const confirmar = confirm("ATENÇÃO: Você tem certeza que deseja deletar a sua conta permanentemente?");
+        if (!confirmar) return;
+
+        const resultadoDel = await window.enviarParaAPI(`/api/users/${userId}`, null, 'DELETE');
+        if (resultadoDel && resultadoDel.sucesso !== false) {
+          alert('Sua conta foi removida com sucesso.');
+          localStorage.clear();
+          window.location.href = '/';
+        }
+      });
+
+      // 3. CARREGA A LISTA POPULADA DA ESTANTE (Aproveita os dados diretos do seu Service)
+      const container = document.getElementById('shelf-container');
+      const resultadoEstante = await window.enviarParaAPI(`/api/users/${userId}/shelf`, null, 'GET');
+      container.innerHTML = '';
+
+      // Lê a array de livros de forma totalmente flexível baseada no seu padrão de controllers
+      const shelf = resultadoEstante?.dados || resultadoEstante?.shelf || (Array.isArray(resultadoEstante) ? resultadoEstante : []);
+      document.getElementById('book-count').innerText = `${shelf.length} livro(s)`;
+
+      if (shelf.length === 0) {
+        container.innerHTML = `
+          <div class="shelf-empty-state" style="text-align: center; padding: 40px; background: #f9f9f9; border-radius: 8px; border: 1px dashed #ccc;">
+            <p style="margin-bottom: 15px; color: #666;">Você ainda não adicionou nenhum livro à sua estante de leituras.</p>
+            <a class="btn btn-discover" href="/books" style="display: inline-block; padding: 8px 16px; background: #28a745; color: white; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 0.9rem;">🔍 Descobrir Livros</a>
+          </div>
+        `;
+        return;
+      }
+
+      const grid = document.createElement('div');
+      grid.style = "display: flex; flex-direction: column; gap: 15px;";
+      container.appendChild(grid);
+
+      // 4. MAPEAMENTO DIRETO DO SEU SERVICE DE LIVROS POPULADOS
+            // 4. MAPEAMENTO DIRETO DO SEU SERVICE DE LIVROS POPULADOS (DESIGN VERTICAL CORRIGIDO)
+      shelf.forEach(item => {
+        const bookId = item.id || item.bookID; 
+        let statusAtual = item.status || 'Ler';
+        let dataMudar = item.atualizacao || '';
+
+        const card = document.createElement('div');
+        card.id = `book-card-${bookId}`;
+        
+        // Mudamos o card para coluna (flex-direction: column) para organizar as linhas verticais
+        card.style = `
+          display: flex; 
+          flex-direction: column; 
+          gap: 15px; 
+          padding: 20px; 
+          background: #fff; 
+          border: 1px solid #ddd; 
+          border-radius: 8px; 
+          box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+          margin-bottom: 15px;
+        `;
+
+        const tituloExibir = item.titulo || 'Obra sem título identificado';
+        const anoExibir = item.publicacao ? `Ano de Publicação: ${item.publicacao}` : 'Ano não informado';
+
+        // REESTRUTURAÇÃO VISUAL COMPACTA CONTRA MISTURA DE DATAS
+        card.innerHTML = `
+          <!-- 1ª LINHA VERTICAL: Dados da Obra (Título e Ano de Publicação) -->
+          <div class="book-info-header" style="width: 100%;">
+            <h4 class="book-title" style="margin: 0 0 4px 0; color: #2c3e50; font-size: 1.25rem; font-weight: bold; line-height: 1.3;">${tituloExibir}</h4>
+            <p class="book-published" style="margin: 0; font-size: 0.85rem; color: #7f8c8d; font-weight: 500;">📅 ${anoExibir}</p>
+          </div>
+          
+          <!-- 2ª LINHA VERTICAL: Controles e Ações alinhados horizontalmente -->
+          <div class="book-controls-row" style="display: flex; justify-content: space-between; align-items: center; width: 100%; gap: 15px;">
+            <div class="status-buttons" style="display: flex; background: #eee; padding: 4px; border-radius: 6px; gap: 4px; align-items: center; height: 46px; box-sizing: border-box;">
+              <button class="btn-status-toggle" data-status="Ler" style="display: inline-flex; flex-direction: column; justify-content: center; align-items: center; min-width: 95px; height: 38px; border: none; border-radius: 4px; font-size: 0.75rem; font-weight: bold; cursor: pointer; transition: background 0.2s; padding: 2px 4px; line-height: 1.1; box-sizing: border-box;"><span>📌</span><span style="white-space: nowrap;">Quero Ler</span></button>
+              <button class="btn-status-toggle" data-status="Lendo" style="display: inline-flex; flex-direction: column; justify-content: center; align-items: center; min-width: 95px; height: 38px; border: none; border-radius: 4px; font-size: 0.75rem; font-weight: bold; cursor: pointer; transition: background 0.2s; padding: 2px 4px; line-height: 1.1; box-sizing: border-box;"><span>📖</span><span style="white-space: nowrap;">Lendo</span></button>
+              <button class="btn-status-toggle" data-status="Lido" style="display: inline-flex; flex-direction: column; justify-content: center; align-items: center; min-width: 95px; height: 38px; border: none; border-radius: 4px; font-size: 0.75rem; font-weight: bold; cursor: pointer; transition: background 0.2s; padding: 2px 4px; line-height: 1.1; box-sizing: border-box;"><span>✔️</span><span style="white-space: nowrap;">Lido</span></button>
+            </div>
+            <button class="btn-remove-book" style="display: inline-flex; justify-content: center; align-items: center; background: none; border: 1px solid #dc3545; color: #dc3545; padding: 0 16px; height: 46px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: bold; box-sizing: border-box; transition: background 0.2s;">❌ Excluir</button>
+          </div>
+
+          <!-- 3ª LINHA VERTICAL: Histórico de Alteração isolado abaixo dos botões -->
+          <div class="book-timeline-footer" style="width: 100%; border-top: 1px solid #f0f0f0; padding-top: 8px;">
+            <p class="book-date" style="margin: 0; font-size: 0.8rem; color: #a0aec0; font-weight: 500;">Status de leitura modificado em: <span class="date-span" style="color: #4a5568; font-weight: bold;">${dataMudar}</span></p>
+          </div>
+        `;
+        grid.appendChild(card);
+
+        const btnRemove = card.querySelector('.btn-remove-book');
+        btnRemove.addEventListener('mouseenter', () => { btnRemove.style.background = '#dc3545'; btnRemove.style.color = 'white'; });
+        btnRemove.addEventListener('mouseleave', () => { btnRemove.style.background = 'transparent'; btnRemove.style.color = '#dc3545'; });
+
+        function atualizarBotoesVisuais(statusAlvo) {
+          card.querySelectorAll('.btn-status-toggle').forEach(btn => {
+            if (btn.getAttribute('data-status') === statusAlvo) {
+              btn.style.background = '#007bff';
+              btn.style.color = 'white';
+            } else {
+              btn.style.background = 'transparent';
+              btn.style.color = '#555';
+            }
+          });
+        }
+        atualizarBotoesVisuais(statusAtual);
+
+        if (!item.titulo) {
+          window.enviarParaAPI(`/api/books/${bookId}`, null, 'GET').then(livroRes => {
+            if (livroRes) {
+              const bInfo = livroRes.dados || livroRes;
+              card.querySelector('.book-title').innerText = bInfo.titulo || 'Sem Título';
+              if (bInfo.publicacao) {
+                const pubP = card.querySelector('.book-published');
+                pubP.innerText = `📅 Ano de Publicação: ${bInfo.publicacao}`;
+              }
+            }
+          });
+        }
+
+        card.querySelectorAll('.btn-status-toggle').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            const statusClicado = btn.getAttribute('data-status');
+            if (statusClicado === statusAtual) return;
+
+            const resPut = await window.enviarParaAPI(`/api/users/${userId}/shelf/${bookId}`, { status: statusClicado }, 'PUT');
+            
+            if (resPut && resPut.sucesso !== false && !resPut.error) {
+              statusAtual = statusClicado;
+              atualizarBotoesVisuais(statusAtual);
+              const hoje = new Date().toLocaleDateString('pt-BR');
+              card.querySelector('.date-span').innerText = hoje;
+            } else {
+              if (window.mostrarErroGlobal) {
+                window.mostrarErroGlobal(resPut?.message || 'Não foi possível alterar o status do livro.');
+              }
+            }
+          });
+        });
+
+        card.querySelector('.btn-remove-book').addEventListener('click', async () => {
+          if (!confirm(`Deseja remover este livro da sua estante?`)) return;
+
+          const resDelete = await window.enviarParaAPI(`/api/users/${userId}/shelf/${bookId}`, null, 'DELETE');
+          
+          if (resDelete && resDelete.sucesso !== false) {
+            card.remove();
+            const cont = document.getElementById('book-count');
+            const numAtual = parseInt(cont.innerText);
+            cont.innerText = `${numAtual - 1} livro(s)`;
+          }
+        });
+      });
+    });

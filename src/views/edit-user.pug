@@ -1,0 +1,129 @@
+extends layout
+
+block content
+  .edit-profile-wrapper(style="max-width: 500px; margin: 40px auto; padding: 25px; border: 1px solid #ddd; border-radius: 8px; background: #fff; box-shadow: 0 4px 6px rgba(0,0,0,0.05);")
+    .edit-profile-card
+      h2(style="margin-top: 0; color: #2c3e50; margin-bottom: 5px; text-align: center;") Editar Perfil
+      p.edit-subtitle(style="color: #666; margin-bottom: 25px; font-size: 0.95rem; text-align: center;") Altere seus dados cadastrais nos campos permitidos.
+      
+      form#form-edit-user.edit-form(novalidate)
+        .form-group(style="margin-bottom: 15px;")
+          label(for="nome" style="display: block; margin-bottom: 5px; font-weight: bold; color: #34495e;") Nome:
+          input#nome(type="text" name="nome" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;")
+          span#err-nome(style="display: none; color: #dc3545; font-size: 0.8rem; font-weight: bold; margin-top: 5px;")
+          
+        .form-group(style="margin-bottom: 15px;")
+          label(for="login" style="display: block; margin-bottom: 5px; font-weight: bold; color: #34495e;") Usuário / Login:
+          input#login(type="text" name="login" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;")
+          span#err-login(style="display: none; color: #dc3545; font-size: 0.8rem; font-weight: bold; margin-top: 5px;")
+          
+        .form-group(style="margin-bottom: 15px;")
+          label(for="email" style="display: block; margin-bottom: 5px; font-weight: bold; color: #34495e;") E-mail:
+          input#email(type="email" name="email" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;")
+          span#err-email(style="display: none; color: #dc3545; font-size: 0.8rem; font-weight: bold; margin-top: 5px;")
+        
+        .form-group(style="margin-bottom: 25px;")
+          label(for="senha" style="display: block; margin-bottom: 5px; font-weight: bold; color: #34495e;") Nova Senha (Mínimo 8 caracteres):
+          input#senha(type="password" name="senha" placeholder="Deixe em branco para manter a atual" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;")
+          span#err-senha(style="display: none; color: #dc3545; font-size: 0.8rem; font-weight: bold; margin-top: 5px;")
+        
+        .edit-actions(style="display: flex; gap: 15px;")
+          button#btn-salvar-user(type="submit" style="flex: 1; padding: 10px 20px; background: #28a745; color: #fff; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 1rem;") Salvar Alterações
+          a.btn.btn-cancel(href="/profile" style="padding: 10px 20px; background: #e0e0e0; color: #333; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 0.9rem; flex: 1; text-align: center;") Cancelar
+
+  script.
+    document.addEventListener('DOMContentLoaded', async () => {
+      const userId = localStorage.getItem('id');
+      const token = localStorage.getItem('token');
+      
+      if (!userId) {
+        window.location.href = '/login';
+        return;
+      }
+
+      try {
+        const headers = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
+        const responseFetch = await fetch(`/api/users/${userId}`, { method: 'GET', headers });
+        const userRes = await responseFetch.json().catch(() => ({}));
+
+        if (responseFetch.ok && userRes && userRes.status !== 'error') {
+          const user = userRes.dados || userRes;
+          document.getElementById('nome').value = user.nome || '';
+          document.getElementById('login').value = user.login || '';
+          document.getElementById('email').value = user.email || '';
+        } else {
+          const msgFalha = userRes?.message || 'Erro ao carregar dados do perfil.';
+          if (window.mostrarErroGlobal) window.mostrarErroGlobal(msgFalha);
+        }
+      } catch (e) {
+        console.error(e);
+        if (window.mostrarErroGlobal) window.mostrarErroGlobal("Erro de conexão ao carregar dados do perfil.");
+      }
+
+      document.getElementById('form-edit-user').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (typeof window.limparErroGlobal === 'function') window.limparErroGlobal();
+        document.querySelectorAll('.form-group span').forEach(span => span.style.display = 'none');
+        document.querySelectorAll('.form-group input').forEach(input => input.style.borderColor = '#ccc');
+
+        const botao = document.getElementById('btn-salvar-user');
+        botao.innerText = 'Salvando...';
+        botao.disabled = true;
+
+        const formData = new FormData(e.target);
+        const rawData = Object.fromEntries(formData.entries());
+        
+        const cleanData = {};
+        if (rawData.nome) cleanData.nome = rawData.nome;
+        if (rawData.login) cleanData.login = rawData.login;
+        if (rawData.email) cleanData.email = rawData.email;
+        if (rawData.senha) cleanData.senha = rawData.senha; 
+
+        const respostaRaw = await fetch(`/api/users/${userId}`, {
+          method: 'PATCH',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify(cleanData)
+        });
+
+        const resultado = await respostaRaw.json().catch(() => ({}));
+
+        if (!respostaRaw.ok || resultado.status === 'error') {
+          const mensagemErro = resultado.message || 'Erro ao atualizar o perfil.';
+          const partes = mensagemErro.split(':');
+          
+          if (partes.length > 1) {
+            const campoPrejudicado = partes[0].trim().toLowerCase(); 
+            const textoDoErro = partes[1].trim(); 
+            const elementoErro = document.getElementById(`err-${campoPrejudicado}`);
+            const inputElemento = document.getElementById(campoPrejudicado);
+            
+            if (elementoErro) {
+              elementoErro.innerText = `⚠️ ${textoDoErro}`;
+              elementoErro.style.display = 'block';
+              if (inputElemento) inputElemento.style.borderColor = '#dc3545';
+              botao.innerText = 'Salvar Alterações';
+              botao.disabled = false;
+              return;
+            }
+          }
+
+          if (window.mostrarErroGlobal) {
+            window.mostrarErroGlobal(mensagemErro);
+          } else {
+            alert(mensagemErro);
+          }
+          botao.innerText = 'Salvar Alterações';
+          botao.disabled = false;
+          return;
+        }
+
+        alert('Perfil updated com sucesso!');
+        if (cleanData.login) localStorage.setItem('login', cleanData.login);
+        window.location.href = '/profile';
+      });
+    });

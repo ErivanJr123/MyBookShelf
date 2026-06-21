@@ -1,0 +1,983 @@
+openapi: 3.0.3
+info:
+  title: API Corporativa de Gerenciamento de Livros e Estantes
+  version: 1.0.0
+  description: |-
+    Documentação oficial da API REST corporativa para controle de usuários, 
+    autores, catálogos de livros e gerenciamento de estantes particulares.
+servers:
+  - url: http://localhost:3000/api
+    description: Servidor de Desenvolvimento Local
+
+security:
+  - BearerAuth: []
+
+paths:
+  /users/login:
+    post:
+      summary: Autenticação de Usuário
+      description: Realiza a autenticação via login e senha criptografados por bcrypt. Rota pública.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserLoginRequest'
+      responses:
+        '200':
+          description: Autenticação bem-sucedida. Retorna o token JWT e payload de identificação.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserLoginResponse'
+        '412':
+          description: Falha estrutural de validação nos campos do body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+        '401':
+          description: Credenciais Inválidas (Login ou senha incorretos).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+                example:
+                  status: error
+                  statusCode: 401
+                  message: Credenciais Inválidas
+
+  /users/register:
+    post:
+      summary: Cadastro de Novo Usuário
+      description: Cria um usuário no sistema. Rota pública.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRegisterRequest'
+      responses:
+        '201':
+          description: Usuário criado com sucesso. Retorna o UserDTO de resposta.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDTO'
+        '422':
+          description: Falhas estruturais de validação (ex. tamanho do nome/senha ou formato de e-mail).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+        '409':
+          description: Conflito. Usuário já existe no banco de dados (Login ou e-mail duplicados).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+                example:
+                  status: error
+                  statusCode: 409
+                  message: Usuário já existe
+
+  /users:
+    get:
+      summary: Listar Todos os Usuários
+      description: Retorna uma lista de todos os usuários cadastrados. Apenas administradores possuem acesso.
+      responses:
+        '200':
+          description: Lista de usuários recuperada com sucesso.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserDTO'
+        '401':
+          description: Token não enviado, expirado ou inválido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+        '403':
+          description: Proibido. O papel do usuário autenticado não é "admin".
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+
+  /users/{id}:
+    get:
+      summary: Buscar Usuário por ID
+      description: Recupera os dados detalhados de um usuário específico.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID único do usuário em formato UUIDv4.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Usuário encontrado com sucesso.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserFullDTO'
+        '403':
+          description: Proibido. O usuário logado está tentando ler um ID que não pertence a ele mesmo.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+        '404':
+          description: Usuário não encontrado no sistema.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+
+    patch:
+      summary: Atualizar Usuário Parcialmente
+      description: Atualiza opcionalmente os dados cadastrais do próprio usuário.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID único do usuário.
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdateRequest'
+      responses:
+        '200':
+          description: Usuário atualizado com sucesso.
+        '409':
+          description: Conflito. O login ou e-mail informado já está em uso por outro ID.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+        '422':
+          description: Dados inválidos fornecidos no payload (ex. senha menor que 8 caracteres).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+
+    delete:
+      summary: Remover Usuário do Sistema
+      description: Exclui permanentemente o cadastro do usuário.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID único do usuário.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Usuário deletado com sucesso. Nenhum conteúdo retornado.
+        '404':
+          description: Usuário não encontrado no sistema.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+
+  /users/{id}/shelf:
+    get:
+      summary: Listar Livros da Estante Particular
+      description: Recupera todos os livros vinculados à estante do usuário especificado.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID único do usuário.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Estante listada com sucesso. Retorna array de livros com status de leitura.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserShelfItem'
+
+    post:
+      summary: Adicionar Livro à Estante Particular
+      description: Vincula uma obra do catálogo à estante particular do usuário logado através do ID do livro.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID único do usuário.
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShelfLinkRequest'
+      responses:
+        '201':
+          description: Livro vinculado com sucesso. Retorna o BookDTO correspondente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookDTO'
+        '404':
+          description: Livro não encontrado no catálogo geral da aplicação.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+                example:
+                  status: error
+                  statusCode: 404
+                  message: Livro não encontrado
+        '409':
+          description: Conflito. O livro informado já constava na estante particular desse usuário.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+                example:
+                  status: error
+                  statusCode: 409
+                  message: O livro já estava na estante
+
+  /users/{id}/shelf/{bookID}:
+    put:
+      summary: Atualizar Status de Leitura na Estante
+      description: Modifica obrigatoriamente o status de progresso do livro do usuário.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID único do usuário em formato UUIDv4.
+          schema:
+            type: string
+            format: uuid
+        - name: bookID
+          in: path
+          required: true
+          description: ID único do livro em formato UUIDv4.
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShelfStatusUpdateRequest'
+      responses:
+        '200':
+          description: Status de leitura modificado com sucesso.
+        '422':
+          description: Falha de validação. Status fora do enum permitido (Ler, Lendo, Lido).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+        '404':
+          description: O livro em questão não está mapeado na estante do usuário.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+                example:
+                  status: error
+                  statusCode: 404
+                  message: O Livro não está na sua estante
+
+    delete:
+      summary: Remover Livro da Estante Particular
+      description: Desvincula a obra da estante pessoal do usuário.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID único do usuário.
+          schema:
+            type: string
+            format: uuid
+        - name: bookID
+          in: path
+          required: true
+          description: ID único do livro.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Livro removido com sucesso da estante (No Content).
+        '404':
+          description: Operação inválida ou ID do usuário/vínculo não encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+  /books:
+    get:
+      summary: Listar Livros com Filtros Dinâmicos
+      description: Rota pública que executa a função controller 'listBooksWithFilter'. Suporta busca textual inteligente parcial e case-insensitive para títulos.
+      security: []
+      parameters:
+        - name: autorID
+          in: query
+          required: false
+          description: ID único do autor em formato UUIDv4.
+          schema:
+            type: string
+            format: uuid
+        - name: titulo
+          in: query
+          required: false
+          description: Busca textual inteligente parcial (case-insensitive).
+          schema:
+            type: string
+        - name: publicacao
+          in: query
+          required: false
+          description: Filtro pelo ano exato de publicação da obra.
+          schema:
+            type: integer
+        - name: exemplar
+          in: query
+          required: false
+          description: Filtro pelo número do exemplar.
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Lista de livros recuperada com sucesso de acordo com os filtros aplicados.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BookDTO'
+
+    post:
+      summary: Cadastrar Novo Livro
+      description: Adiciona uma nova obra ao catálogo geral. Rota exclusiva para administradores.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookCreateRequest'
+      responses:
+        '201':
+          description: Livro cadastrado com sucesso.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookDTO'
+        '404':
+          description: Autor não encontrado com o autorID fornecido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+                example:
+                  status: error
+                  statusCode: 404
+                  message: Autor não encontrado
+        '409':
+          description: Conflito. O título já está cadastrado para o mesmo autor.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+                example:
+                  status: error
+                  statusCode: 409
+                  message: Livro já existe
+        '422':
+          description: Ano de publicação inválido (menor que o nascimento do autor ou maior que o ano atual do servidor).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+                example:
+                  status: error
+                  statusCode: 422
+                  message: Ano de publicação inválido
+
+  /books/{id}:
+    get:
+      summary: Buscar Livro por ID
+      description: Retorna os dados de um livro específico do catálogo. Rota pública.
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID único do livro em formato UUIDv4.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Livro localizado com sucesso.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookDTO'
+        '404':
+          description: Obra não encontrada no catálogo.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+                example:
+                  status: error
+                  statusCode: 404
+                  message: Livro não encontrado
+
+    patch:
+      summary: Ajustar Estoque de Exemplares
+      description: Atualiza a contagem de exemplares em estoque para fins de ajuste físico. Apenas Admin.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID único do livro (mapeado como bookID no controller).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookStockUpdateRequest'
+      responses:
+        '200':
+          description: Estoque do exemplar atualizado com sucesso.
+        '404':
+          description: Livro não encontrado para atualização.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+                example:
+                  status: error
+                  statusCode: 404
+                  message: Livro não encontrado
+
+    delete:
+      summary: Remover Obra do Catálogo
+      description: Exclui permanentemente o livro do catálogo geral. Parâmetro mapeado como bookID pelo controller. Apenas Admin.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID único da obra (bookID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Obra deletada com sucesso (No Content).
+        '404':
+          description: Livro não encontrado para exclusão.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+                example:
+                  status: error
+                  statusCode: 404
+                  message: Livro não encontrado
+
+  /authors:
+    get:
+      summary: Listar Todos os Autores
+      description: Retorna uma listagem de todos os autores mascarados por DTO. Rota pública.
+      security: []
+      responses:
+        '200':
+          description: Lista de autores carregada com sucesso.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AuthorDTO'
+
+    post:
+      summary: Cadastrar Novo Autor
+      description: Cria um registro de autor no sistema. Apenas Admin.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthorCreateRequest'
+      responses:
+        '201':
+          description: Autor cadastrado com sucesso.
+        '409':
+          description: Conflito. Autor já foi cadastrado anteriormente por duplicidade de registro.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+                example:
+                  status: error
+                  statusCode: 409
+                  message: Autor já foi cadastrado anteriormente
+        '422':
+          description: Falha de validação do nome. Requer nome e sobrenome separados por espaço em branco.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+                example:
+                  status: error
+                  statusCode: 422
+                  message: Autor precisa ter nome e sobrenome
+
+  /authors/{id}:
+    get:
+      summary: Buscar Autor por ID
+      description: Retorna os dados completos do autor selecionado. Rota pública.
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID único do autor em formato UUIDv4.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Autor retornado com sucesso.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthorDTO'
+        '404':
+          description: Registro do autor não localizado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+                example:
+                  status: error
+                  statusCode: 404
+                  message: Autor não encontrado
+
+    patch:
+      summary: Atualizar Nacionalidade do Autor
+      description: Permite a atualização do campo de nacionalidade com escape de caracteres maliciosos. Apenas Admin.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID do autor.
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthorUpdateRequest'
+      responses:
+        '200':
+          description: Nacionalidade persistida com sucesso no banco de dados.
+        '404':
+          description: Autor não localizado para alteração.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+                example:
+                  status: error
+                  statusCode: 404
+                  message: Autor não encontrado
+
+    delete:
+      summary: Deletar Autor do Sistema
+      description: Remove permanentemente o cadastro do autor caso não existam livros associados. Apenas Admin.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID do autor.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Autor removido com sucesso (No Content).
+        '404':
+          description: Autor não encontrado no sistema.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+                example:
+                  status: error
+                  statusCode: 404
+                  message: Autor não encontrado
+        '422':
+          description: Erro de integridade. Não é permitido remover o autor enquanto houver livros vinculados.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+              example:
+                status: error
+                statusCode: 422
+                message: Não é permitido remover o autor enquanto ainda há livros em seu nome
+
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Insira o Token JWT retornado no endpoint de login.
+
+  schemas:
+    # --- PADRÃO GLOBAL DE ERRO ---
+    APIError:
+      type: object
+      required:
+        - status
+        - statusCode
+        - message
+      properties:
+        status:
+          type: string
+          example: error
+        statusCode:
+          type: integer
+          example: 400
+        message:
+          type: string
+          example: Mensagem detalhada sobre a exceção capturada.
+
+    # --- SCHEMAS DE USUÁRIOS ---
+    UserLoginRequest:
+      type: object
+      required:
+        - login
+        - senha
+      properties:
+        login:
+          type: string
+          example: joao_silva
+        senha:
+          type: string
+          format: password
+          example: "SenhaSegura123!"
+
+    UserLoginResponse:
+      type: object
+      required:
+        - message
+        - token
+      properties:
+        message:
+          type: string
+          example: Login efetuado com sucesso.
+        token:
+          type: object
+          required:
+            - token
+            - id
+            - papel
+          properties:
+            token:
+              type: string
+              description: String JWT de autenticação.
+              example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+            id:
+              type: string
+              format: uuid
+              example: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d"
+            papel:
+              type: string
+              enum: [admin, usuario]
+              example: usuario
+
+    UserRegisterRequest:
+      type: object
+      required:
+        - nome
+        - login
+        - email
+        - senha
+        - papel
+      properties:
+        nome:
+          type: string
+          minLength: 3
+          example: João Silva
+        login:
+          type: string
+          example: joao_silva
+        email:
+          type: string
+          format: email
+          example: joao.silva@empresa.com
+        senha:
+          type: string
+          minLength: 8
+          format: password
+          example: "mypassword123"
+        papel:
+          type: string
+          enum: [admin, usuario]
+          example: usuario
+
+    UserDTO:
+      type: object
+      required:
+        - id
+        - nome
+        - email
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d"
+        nome:
+          type: string
+          example: João Silva
+        email:
+          type: string
+          format: email
+          example: joao.silva@empresa.com
+
+    UserFullDTO:
+      type: object
+      required:
+        - id
+        - nome
+        - login
+        - email
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d"
+        nome:
+          type: string
+          example: João Silva
+        login:
+          type: string
+          example: joao_silva
+        email:
+          type: string
+          format: email
+          example: joao.silva@empresa.com
+
+    UserUpdateRequest:
+      type: object
+      properties:
+        nome:
+          type: string
+          minLength: 3
+          example: João Silva Alterado
+        login:
+          type: string
+          example: joao_silva_novo
+        email:
+          type: string
+          format: email
+          example: novo.email@empresa.com
+        senha:
+          type: string
+          minLength: 8
+          format: password
+          example: "novasenhasegura1"
+
+    # --- SCHEMAS DE LIVROS ---
+    BookDTO:
+      type: object
+      required:
+        - id
+        - titulo
+        - publicacao
+        - exemplar
+        - autorID
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p"
+        titulo:
+          type: string
+          example: "O Guia do Mochileiro das Galáxias"
+        publicacao:
+          type: integer
+          example: 1979
+        exemplar:
+          type: integer
+          example: 42
+        autorID:
+          type: string
+          format: uuid
+          example: "8f7e6d5c-4b3a-2b1a-0f9e-8d7c6b5a4m3n"
+
+    BookCreateRequest:
+      type: object
+      required:
+        - titulo
+        - publicacao
+        - autorID
+      properties:
+        titulo:
+          type: string
+          minLength: 3
+          example: "O Guia do Mochileiro das Galáxias"
+        publicacao:
+          type: integer
+          description: Ano de publicação (maior que o ano de nascimento do autor e menor ou igual ao ano atual).
+          example: 1979
+        exemplar:
+          type: integer
+          minimum: 1
+          default: 1
+          example: 5
+        autorID:
+          type: string
+          format: uuid
+          example: "8f7e6d5c-4b3a-2b1a-0f9e-8d7c6b5a4m3n"
+
+    BookStockUpdateRequest:
+      type: object
+      required:
+        - exemplar
+      properties:
+        exemplar:
+          type: integer
+          minimum: 0
+          maximum: 5000000010
+          example: 150
+
+    UserShelfItem:
+      type: object
+      required:
+        - id
+        - titulo
+        - publicacao
+        - status
+        - atualizacao
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p"
+        titulo:
+          type: string
+          example: "O Guia do Mochileiro das Galáxias"
+        publicacao:
+          type: integer
+          example: 1979
+        status:
+          type: string
+          enum: [Ler, Lendo, Lido]
+          example: Lendo
+        atualizacao:
+          type: string
+          format: date-time
+          example: "2026-03-30T14:22:10Z"
+
+    ShelfLinkRequest:
+      type: object
+      required:
+        - id
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: ID do livro a ser adicionado à estante.
+          example: "1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p"
+
+    ShelfStatusUpdateRequest:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum: [Ler, Lendo, Lido]
+          example: Lido
+
+    # --- SCHEMAS DE AUTORES ---
+    AuthorDTO:
+      type: object
+      required:
+        - id
+        - nome
+        - nacionalidade
+        - nascimento
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "8f7e6d5c-4b3a-2b1a-0f9e-8d7c6b5a4m3n"
+        nome:
+          type: string
+          example: "Douglas Adams"
+        nacionalidade:
+          type: string
+          example: "Britânico"
+        nascimento:
+          type: integer
+          example: 1952
+
+    AuthorCreateRequest:
+      type: object
+      required:
+        - nome
+        - nacionalidade
+        - nascimento
+      properties:
+        nome:
+          type: string
+          description: Deve conter nome e sobrenome (separados por espaço em branco).
+          example: "Douglas Adams"
+        nacionalidade:
+          type: string
+          description: String com escape de caracteres maliciosos.
+          example: "Britânico"
+        nascimento:
+          type: integer
+          description: Ano máximo permitido é o ano atual do servidor.
+          example: 1952
+
+    AuthorUpdateRequest:
+      type: object
+      properties:
+        nacionalidade:
+          type: string
+          description: String higienizada via express-validator.
+          example: "Inglês"

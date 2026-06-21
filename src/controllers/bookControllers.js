@@ -2,9 +2,10 @@ import bookService from '../services/bookService.js';
 
 //requisição
 //READ
-export const bookShelf = async (req,res,next) => {
+export const listBooksWithFilter = async (req,res,next) => {
     try {
-        const books = await bookService.getAll();
+        const filters = req.query;
+        const books = await bookService.listBooksFilter(filters);
         res.status(200).json(books);
     } catch (error) {
         next(error)
@@ -21,7 +22,7 @@ export const findBooks = async (req,res,next) => {
 
 };
 //CREATE
-export const addBook = async (req,res,next) =>{
+export const registerNewBook = async (req,res,next) =>{
     try {
         const newBook = req.body;
         const bookDTO = await bookService.create(newBook);
@@ -31,10 +32,10 @@ export const addBook = async (req,res,next) =>{
     }
 };
 //UPDATE
-export const updateStatusBook = async (req,res,next) => {
+export const modifyCopy = async (req,res,next) => {
     try {
-        const {id} = req.params;
-        const updatedBook = await bookService.update(id,req.body.status);
+        const { id } = req.params;
+        const updatedBook = await bookService.updateCopy(id, req.body);
         res.status(200).json(updatedBook);
     } catch (error) {
         next(error)

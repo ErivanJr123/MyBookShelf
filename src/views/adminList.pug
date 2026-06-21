@@ -1,0 +1,87 @@
+extends layout
+
+block content
+  .admin-panel(style="padding: 20px 0; max-width: 900px; margin: 0 auto;")
+    .admin-header(style="margin-bottom: 25px; border-bottom: 2px solid #eee; padding-bottom: 15px;")
+      h1(style="margin: 0; color: #2c3e50;") 🛡️ Painel de Controle de Usuários
+      p(style="color: #666; margin: 5px 0 0 0;") Listagem de leitores cadastrados para controle de acervo e atualização de vínculo institucional.
+    
+    .table-wrapper(style="overflow-x: auto; background: #fff; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.02);")
+      table.admin-table(style="width: 100%; border-collapse: collapse; text-align: left;")
+        thead(style="background: #34495e; color: white;")
+          tr
+            th(style="padding: 12px 15px;") Nome Completo
+            th(style="padding: 12px 15px;") E-mail de Contato
+            th(style="padding: 12px 15px; text-align: center;") Vínculo Atual
+            th(style="padding: 12px 15px; text-align: center;") Alterar Vínculo
+        tbody#users-table-body
+          tr
+            td(colspan="4" style="text-align: center; padding: 25px; color: #666; font-style: italic;") Verificando credenciais e buscando usuários no sistema...
+
+  script.
+    document.addEventListener('DOMContentLoaded', async () => {
+      const papel = localStorage.getItem('papel');
+      const tabela = document.getElementById('users-table-body');
+
+      // 1. Bloqueio de Segurança: Se não for admin, barra o acesso imediatamente
+      if (papel !== 'admin') {
+        const panel = document.querySelector('.admin-panel');
+        if (panel) panel.innerHTML = '';
+        
+        if (window.mostrarErroGlobal) {
+          window.mostrarErroGlobal("Acesso negado. Esta página é restrita a administradores.");
+        }
+        setTimeout(() => { window.location.href = '/'; }, 2500);
+        return;
+      }
+
+      // 2. Busca a lista de usuários através da central de requisições autenticada (GET /api/users)
+      const resultado = await window.enviarParaAPI('/api/users', null, 'GET');
+      tabela.innerHTML = '';
+
+      const listaUsuarios = resultado?.dados || resultado?.usuarios || (Array.isArray(resultado) ? resultado : null);
+
+      if (!listaUsuarios || listaUsuarios.length === 0) {
+        tabela.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 25px; color: #666;">Nenhum usuário localizado no sistema.</td></tr>';
+        return;
+      }
+
+      // 3. Renderiza as linhas dinamicamente em tempo de execução
+      listaUsuarios.forEach(u => {
+        const tr = document.createElement('tr');
+        tr.id = `user-row-${u.id}`;
+        tr.style.borderBottom = '1px solid #eee';
+        
+        const ehAdmin = u.papel === 'admin';
+        const badgeCor = ehAdmin ? '#e74c3c' : '#bdc3c7';
+
+        // Correção de Alinhamento: Adicionado text-align: center na célula do vínculo
+        tr.innerHTML = `
+          <td style="padding: 12px 15px; font-weight: bold; color: #2c3e50;">${u.nome || u.login || 'Leitor'}</td>
+          <td style="padding: 12px 15px; color: #555;">${u.email || 'Não informado'}</td>
+          <td style="padding: 12px 15px; text-align: center;"><span style="background: ${badgeCor}; color: white; padding: 5px 12px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; display: inline-block; min-width: 80px;">${(u.papel || 'usuario').toUpperCase()}</span></td>
+          <td style="padding: 12px 15px; text-align: center;">
+            <button class="btn-promote" style="margin: 0 auto; padding: 6px 16px; background: #007bff; color: white; border: none; border-radius: 4px; font-weight: bold; font-size: 0.85rem; cursor: pointer;">▲ Promover Admin</button>
+          </td>
+        `;
+
+        // Evento PATCH /api/users/${u.id}/promote - Promover usuário a admin
+        tr.querySelector('.btn-promote').addEventListener('click', async () => {
+          if (ehAdmin) {
+            alert(`O usuário "${u.nome || u.login}" já possui o vínculo de Administrador.`);
+            return;
+          }
+
+          if (!confirm(`Deseja formalizar o contrato alterando o vínculo do usuário "${u.nome || u.login}" para Administrador?`)) return;
+          
+          const resPromote = await window.enviarParaAPI(`/api/users/${u.id}/promote`, null, 'PATCH');
+          
+          if (resPromote && resPromote.sucesso !== false) {
+            alert(`O usuário "${u.nome || u.login}" agora possui vínculo de Administrador!`);
+            window.location.reload();
+          }
+        });
+
+        tabela.appendChild(tr);
+      });
+    });

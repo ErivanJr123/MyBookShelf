@@ -17,5 +17,11 @@ class AuthorDTO{
             nascimento: obj.nascimento
         }
     }
+    static update(data){
+        const allowedFields = ["nome", "nacionalidade", "nascimento"];
+        const cleanData = {};
+        allowedFields.forEach(F => {if(data[F] !== undefined) cleanData[F] = data[F]});
+        return cleanData;
+    }
 }
 export default AuthorDTO;

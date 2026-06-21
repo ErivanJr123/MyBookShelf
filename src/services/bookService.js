@@ -1,12 +1,9 @@
 import {randomUUID} from 'node:crypto';
 import { bookRepository } from "../repositories/bookRepository.js";
 import dto from '../dtos/bookDTO.js';
+import { authorRepository } from '../repositories/authorRepository.js';
 
 class Service{
-    static async getAll(){
-        const booksDB = await bookRepository.getAll()
-        return booksDB.map(dto.response);
-    }
     static async findByID(ID){
         const bookDB = await bookRepository.findByID(ID);
         if(!bookDB){
@@ -17,7 +14,7 @@ class Service{
         return dto.response(bookDB);
     }
     static async create(data){
-        const existeAutor = await bookRepository.findByAuthorID(data.autorID)
+        const existeAutor = await authorRepository.findById(data.autorID)
         if(!existeAutor){
             const error = new Error("Autor não encontrado");
             error.statusCode = 404;
@@ -31,8 +28,8 @@ class Service{
             error.statusCode = 409;
             throw error;
         }
-        const nascimento_autor = await bookRepository.findNascimento(data.autorID);
-        if(nascimento_autor>data.publicacao||data.publicacao>new Date().getFullYear()){
+        const bornAuthor = existeAutor.nascimento; // era aqui que procurava a data de nascimento do autor no banco de livros
+        if(bornAuthor>data.publicacao||data.publicacao>new Date().getFullYear()){
             const error = new Error("Ano de publicação inválido");
             error.statusCode = 422;
             throw error;
@@ -40,23 +37,47 @@ class Service{
         const addBookDB = await bookRepository.create(bookDTO);
         return dto.response(addBookDB);
     }
-    static async update(id,update){
-        const updatedBook =  await bookRepository.update(id,update)
-        if(!updatedBook){
+    static async updateCopy(id,update){
+        const currentBook = await bookRepository.findByID(id);
+        if(!currentBook){
             const error = new Error("Livro não encontrado");
             error.statusCode = 404;
             throw error;
         }
+        const updateClean = dto.update(update);
+        if(updateClean.titulo && updateClean.titulo !== currentBook.titulo && await bookRepository.findBookDuplicate(currentBook.autorID, updateClean.titulo)){
+            const error = new Error("Livro já existe");
+            error.statusCode = 409;
+            throw error;
+        }
+        if(updateClean.publicacao){
+            const author = await authorRepository.findById(currentBook.autorID);
+            if(updateClean.publicacao<author.nascimento || updateClean.publicacao>new Date().getFullYear()){
+                const error = new Error("Ano de publicação inválido");
+                error.statusCode = 422;
+                throw error;
+            }
+        }
+        const updatedBook =  await bookRepository.updateBook(id,updateClean);
         return dto.response(updatedBook);
     }
+    static async listBooksFilter(filter){
+        const condition = {};
+        if(filter.titulo) condition.titulo = filter.titulo;
+        if(filter.publicacao) condition.publicacao = filter.publicacao;
+        if(filter.exemplar) condition.exemplar = filter.exemplar;
+        if(filter.autorID) condition.autorID = filter.autorID;
+        const books = await bookRepository.findWithFilter(condition);
+        return books.map(B => dto.response(B));
+    }
     static async delete(id){
-        const removeu = await bookRepository.remove(id);
-        if(!removeu){
+        const removed = await bookRepository.remove(id);
+        if(!removed){
             const error = new Error("Livro não encontrado");
             error.statusCode = 404;
             throw error;
         }        
-        return removeu;
+        return removed;
     }
 }
 export default Service;

@@ -1,36 +1,64 @@
 extends layout
 
 block content
-  h1 ✍️ Cadastrar Novo Autor
+  .form-wrapper(style="max-width: 500px; margin: 40px auto; padding: 25px; border: 1px solid #ddd; border-radius: 8px; background: #fff; box-shadow: 0 4px 6px rgba(0,0,0,0.05);")
+    h2(style="color: #2c3e50; margin-bottom: 20px; text-align: center;") ✍️ Cadastrar Novo Autor
+    p.subtitle(style="color: #666; margin-bottom: 20px; text-align: center; font-size: 0.95rem;") Adicione um novo escritor para poder vincular obras ao acervo.
 
-  form#authorForm
-    .form-group
-      label Nome Completo:
-      input(name="nome" placeholder="Nome e Sobrenome" required)
-    
-    .form-group
-      label Nacionalidade (Opcional):
-      input(name="nacionalidade" placeholder="Ex: Brasileira")
+    form#authorForm(novalidate)
+      .form-group(style="margin-bottom: 15px;")
+        label(for="nome" style="display: block; margin-bottom: 5px; font-weight: bold; color: #34495e;") Nome Completo:
+        input#nome(name="nome" placeholder="Nome e Sobrenome" required style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;")
       
-    .form-group
-      label Ano de Nascimento:
-      input(type="number" name="nascimento" placeholder="Ex: 1990" required)
-    
-    br
-    button.btn.btn-primary(type="submit") Salvar Autor
+      .form-group(style="margin-bottom: 15px;")
+        label(for="nacionalidade" style="display: block; margin-bottom: 5px; font-weight: bold; color: #34495e;") Nacionalidade (Opcional):
+        input#nacionalidade(name="nacionalidade" placeholder="Ex: Brasileira" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;")
+        
+      .form-group(style="margin-bottom: 25px;")
+        label(for="nascimento" style="display: block; margin-bottom: 5px; font-weight: bold; color: #34495e;") Ano de Nascimento:
+        input#nascimento(type="number" name="nascimento" placeholder="Ex: 1990" required style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;")
+      
+      .form-actions(style="display: flex; gap: 10px; margin-top: 25px;")
+        button#btn-salvar-autor(type="submit" style="flex: 1; padding: 12px; font-weight: bold; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem;") Salvar Autor
+        a.btn.btn-cancel(href="/authors" style="padding: 12px 20px; background: #e0e0e0; color: #333; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 0.9rem; text-align: center;") Cancelar
 
   script.
+    document.addEventListener('DOMContentLoaded', () => {
+      const papel = localStorage.getItem('papel');
+      
+      if (papel !== 'admin') {
+        const container = document.querySelector('.container');
+        if (container) container.innerHTML = '';
+        
+        if (window.mostrarErroGlobal) {
+          window.mostrarErroGlobal("Acesso negado. Apenas administradores podem cadastrar novos autores.");
+        }
+        setTimeout(() => { window.location.href = '/authors'; }, 2500);
+      }
+    });
+
     document.querySelector('#authorForm').onsubmit = async (e) => {
         e.preventDefault();
-        window.limparErroGlobal();
+        if (window.limparErroGlobal) window.limparErroGlobal();
+
+        const botao = document.getElementById('btn-salvar-autor');
+        botao.innerText = 'Salvando...';
+        botao.disabled = true;
 
         const formData = new FormData(e.target);
         const data = Object.fromEntries(formData);
-        data.nascimento = parseInt(data.nascimento);
+        
+        if (data.nascimento) {
+          data.nascimento = parseInt(data.nascimento, 10);
+        }
 
-        const resultado = await window.enviarParaAPI('/api/authors', data);
+        const resultado = await window.enviarParaAPI('/api/authors', data, 'POST');
 
-        if (resultado.sucesso) {
+        if (resultado && resultado.sucesso !== false) {
+            alert('Autor cadastrado com sucesso!');
             window.location.href = '/authors';
+        } else {
+            botao.innerText = 'Salvar Autor';
+            botao.disabled = false;
         }
     };

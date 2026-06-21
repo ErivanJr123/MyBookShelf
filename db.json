@@ -1,4 +1,89 @@
 {
-  "authors": [],
-  "books": []
+  "users": [
+    {
+      "id": "aa08bcca-b77b-4ac0-81f0-74c597f00443",
+      "nome": "Erivan",
+      "login": "erivan.admin.123",
+      "senha": "$2b$12$H7uCzqoXrIMHLtmSK21/N.QgbfusLQsVx.mgeA.lMNmIm77iOw2QK",
+      "email": "erivan.Admin@email.com",
+      "papel": "admin",
+      "estante": []
+    },
+    {
+      "id": "48ef218f-2bcf-47df-9678-8fcd32d5dcfc",
+      "nome": "José",
+      "login": "jose.456",
+      "senha": "$2b$12$02758LCJQY60gxLVpGhtnuk8grolRguoyepYxYbmjdknE9z/0yLZ6",
+      "email": "jose.456@email.com",
+      "papel": "usuario",
+      "estante": [
+        {
+          "id": "1d732295-bf13-4650-8bdd-b73ebb32423a",
+          "status": "Ler",
+          "atualizacao": "19/06/2026"
+        },
+        {
+          "id": "68a43b4c-2be3-4d46-8274-d47a15fed557",
+          "status": "Ler",
+          "atualizacao": "19/06/2026"
+        },
+        {
+          "id": "928824b8-2a24-4d5e-9596-cb843913310f",
+          "status": "Ler",
+          "atualizacao": "19/06/2026"
+        }
+      ]
+    }
+  ],
+  "authors": [
+    {
+      "id": "1789c84f-28c4-457b-a6d5-6e393ab2cc2a",
+      "nome": "Machado de Assis",
+      "nacionalidade": "Brasileiro",
+      "nascimento": 1839
+    },
+    {
+      "id": "dc54646f-a4d3-4983-b20a-013cddbaa0bd",
+      "nome": "Miguel de Cervantes",
+      "nacionalidade": "Espanhol",
+      "nascimento": 1547
+    }
+  ],
+  "books": [
+    {
+      "id": "1d732295-bf13-4650-8bdd-b73ebb32423a",
+      "titulo": "Dom Casmurro",
+      "publicacao": 1899,
+      "exemplar": 100,
+      "autorID": "1789c84f-28c4-457b-a6d5-6e393ab2cc2a"
+    },
+    {
+      "id": "68a43b4c-2be3-4d46-8274-d47a15fed557",
+      "titulo": "Memórias Póstumas de Brás Cubas",
+      "publicacao": 1881,
+      "exemplar": 11,
+      "autorID": "1789c84f-28c4-457b-a6d5-6e393ab2cc2a"
+    },
+    {
+      "id": "928824b8-2a24-4d5e-9596-cb843913310f",
+      "titulo": "O Alienista",
+      "publicacao": 1882,
+      "exemplar": 15,
+      "autorID": "1789c84f-28c4-457b-a6d5-6e393ab2cc2a"
+    },
+    {
+      "id": "cf8c23a3-1607-4aba-8c53-17cdacf6c37c",
+      "titulo": "O engenhoso fidalgo dom Quixote de la Mancha",
+      "publicacao": 1605,
+      "exemplar": 20,
+      "autorID": "dc54646f-a4d3-4983-b20a-013cddbaa0bd"
+    },
+    {
+      "id": "0e49340d-3433-4f7f-98ef-03bc6bab5170",
+      "titulo": "A Galateia",
+      "publicacao": 1585,
+      "exemplar": 5,
+      "autorID": "dc54646f-a4d3-4983-b20a-013cddbaa0bd"
+    }
+  ]
 }

@@ -1,7 +1,7 @@
 doctype html
 html(lang="pt-br")
   head
-    title MyBookShelf
+    title 📚MyBookShelf
     link(rel="stylesheet", href="/css/style.css")
     style.
       @keyframes shake {
@@ -12,19 +12,78 @@ html(lang="pt-br")
         100% { transform: translateX(0); }
       }
   body
-    nav
-      a(href="/") 🏠 Home
-      a(href="/authors") ✍️ Autores
-      a(href="/books") 📚 Livros
+    nav(style="display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; background: #2c3e50; color: white;")
+      div
+        a(href="/", style="color: white; margin-right: 15px; text-decoration: none; font-weight: bold;") 📚MyBookShelf
+        a(href="/authors", style="color: white; margin-right: 15px; text-decoration: none;") ✍️ Autores
+        a(href="/books", style="color: white; margin-right: 15px; text-decoration: none;") 📖 Livros
+        //- Link do Painel Administrativo (invisível por padrão, ativado via JS se for admin)
+        a#nav-admin-link(href="/admin/users", style="display: none; color: #f1c40f; margin-right: 15px; text-decoration: none; font-weight: bold;") 🛡️ Painel Admin
+      
+      #menu-usuario(style="display: flex; align-items: center; gap: 15px;")
+        a#btn-entrar(href="/login" style="background: #007bff; color: white; text-decoration: none; padding: 6px 15px; border-radius: 4px; font-weight: bold; font-size: 0.9rem;") 🔑 Entrar
+        //- O crachá do usuário agora redireciona para o perfil dele ao ser clicado
+        a#nome-usuario(href="/profile" style="display: none; font-weight: bold; font-size: 0.9rem; background: #34495e; padding: 5px 10px; border-radius: 4px; color: white; text-decoration: none;") Vínculo
+        button#btn-logout(style="display: none; background: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-weight: bold;") Sair →
       
     .container
       #msg-global-erro(style="display: none; background: #ffcccc; color: #cc0000; border: 1px solid #cc0000; padding: 15px; margin-bottom: 20px; border-radius: 8px;")
       
       block content
 
-    script(src="/js/apiClient.js")
+    script(src="/js/apiClient.js") 
     
     script.
+      // 1. GERENCIADOR CENTRAL BLINDADO (Mantido 100% original conforme o seu arquivo inicial)
+      window.enviarParaAPI = async (url, dados = null, metodo = 'GET') => {
+        const token = localStorage.getItem('token');
+        const headers = { 'Content-Type': 'application/json' };
+
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        const opcoes = { method: metodo, headers: headers };
+        if (dados && ['POST', 'PUT', 'PATCH'].includes(metodo.toUpperCase())) {
+          opcoes.body = JSON.stringify(dados);
+        }
+
+        try {
+          const resposta = await fetch(url, opcoes);
+          
+          // Sucesso real sem corpo: Retorna o indicador de sucesso exigido pelas views
+          if (resposta.ok && (resposta.status === 204 || resposta.headers.get('content-length') === '0')) {
+            return { sucesso: true, dados: null };
+          }
+
+          const resultado = await resposta.json().catch(() => ({}));
+
+          // Se a API responder com qualquer código de falha controlado por você no backend
+          if (!resposta.ok) {
+            if ((resposta.status === 401 || resposta.status === 403) && window.location.pathname !== '/login') {
+              localStorage.clear();
+              window.location.href = '/login';
+              return null;
+            }
+
+            // Pesca estritamente o campo 'message' unificado do seu handleValidation e globalErrorHandler
+            const textoErro = resultado.message || 'Erro ao processar requisição no servidor.';
+            
+            if (window.mostrarErroGlobal) {
+              window.mostrarErroGlobal(textoErro);
+            }
+            return null; // Retorna nulo para as views travarem e não executarem o sumiço do card
+          }
+
+          return resultado;
+        } catch (erro) {
+          console.error('Erro global na API:', erro);
+          window.mostrarErroGlobal('Não foi possível conectar ao servidor.');
+          return null;
+        }
+      };
+
+      // 2. FUNÇÕES DE ERRO GLOBAIS
       window.mostrarErroGlobal = function(mensagem) {
         const caixa = document.getElementById('msg-global-erro');
         if (caixa) {
@@ -41,3 +100,75 @@ html(lang="pt-br")
           caixa.style.display = 'none';
         }
       };
+
+      // 3. CONTROLE DE INTERFACE DINÂMICA (Modificado exclusivamente para limpar os resíduos)
+      document.addEventListener('DOMContentLoaded', async () => {
+        const token = localStorage.getItem('token');
+        const papel = localStorage.getItem('papel');
+        const rotaAtual = window.location.pathname;
+
+        // Limpeza de Fantasmas: Valida se o token realmente responde ou se o servidor fechou
+        if (token) {
+          try {
+            const testeSessao = await fetch('/api/authors', { 
+              method: 'GET', 
+              headers: { 'Authorization': `Bearer ${token}` } 
+            });
+            
+            if (testeSessao.status === 401 || testeSessao.status === 403) {
+              localStorage.clear();
+              window.location.reload();
+              return;
+            }
+          } catch (erro) {
+            console.warn("Servidor offline. Eliminando resíduos de sessão.");
+            localStorage.clear();
+            window.location.reload();
+            return;
+          }
+        }
+
+        const rotasPrivadas = ['/books', '/authors', '/profile', '/admin']; 
+        const ehRotaPrivada = rotasPrivadas.some(rota => rotaAtual.startsWith(rota));
+
+        if (!token && ehRotaPrivada) {
+          window.location.href = '/login';
+          return;
+        }
+
+        const btnEntrar = document.getElementById('btn-entrar');
+        const nomeUser = document.getElementById('nome-usuario');
+        const btnLogout = document.getElementById('btn-logout');
+        const navAdminLink = document.getElementById('nav-admin-link');
+
+        if (token) {
+          if (btnEntrar) btnEntrar.style.display = 'none';
+          
+          if (nomeUser) {
+            nomeUser.innerText = `Perfil: ${papel ? papel.toUpperCase() : 'USUÁRIO'}`;
+            nomeUser.style.display = 'inline-block';
+          }
+          
+          if (btnLogout) {
+            btnLogout.style.display = 'inline-block';
+            btnLogout.addEventListener('click', (e) => {
+              e.preventDefault();
+              localStorage.clear();
+              window.location.href = '/'; 
+            });
+          }
+
+          if (papel === 'admin' && navAdminLink) {
+            navAdminLink.style.display = 'inline-block';
+          }
+          
+          if (rotaAtual === '/login' || rotaAtual === '/register') {
+            window.location.href = '/';
+          }
+        } else {
+          if (btnEntrar) btnEntrar.style.display = 'inline-block';
+          if (nomeUser) nameUser.style.display = 'none';
+          if (btnLogout) btnLogout.style.display = 'none';
+          if (navAdminLink) navAdminLink.style.display = 'none';
+        }
+      });

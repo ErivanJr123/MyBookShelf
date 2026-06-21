@@ -1,63 +1,120 @@
 extends layout
 
 block content
-  h1 📖 Novo Livro
+  #admin-area(style="display: none; max-width: 500px; margin: 30px auto; padding: 25px; background: #fff; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);")
+    h1(style="margin-top: 0; color: #2c3e50;") 📖 Registrar Novo Livro
+    p.subtitle(style="color: #666; margin-bottom: 20px;") Adicione um novo título ao acervo público da biblioteca.
 
-  form#bookForm
-    label Título:
-    input(name="titulo" required)
-    
-    label Ano de Publicação:
-    input(type="number" name="publicacao" required)
-    
-    label Autor:
-    select#authorSelect(name="autorID" required)
-      option(value="") Selecione um autor...
+    form#bookForm(novalidate)
+      .form-group(style="margin-bottom: 15px;")
+        label(for="titulo" style="display: block; margin-bottom: 5px; font-weight: bold; color: #34495e;") Título:
+        input#titulo(name="titulo" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;")
       
-    label Status de Leitura:
-    select(name="status")
-      option(value="Ler") Ler
-      option(value="Lendo") Lendo
-      option(value="Lido") Lido
-    br
-    button.btn.btn-primary(type="submit") Salvar Livro
+      .form-group(style="margin-bottom: 15px;")
+        label(for="publicacao" style="display: block; margin-bottom: 5px; font-weight: bold; color: #34495e;") Ano de Publicação:
+        input#publicacao(type="number" name="publicacao" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;")
+      
+      .form-group(style="margin-bottom: 15px;")
+        label(for="exemplar" style="display: block; margin-bottom: 5px; font-weight: bold; color: #34495e;") Quantidade de Exemplares:
+        input#exemplar(type="number" name="exemplar" value="1" min="1" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;")
+      
+      .form-group(style="margin-bottom: 20px;")
+        label(for="authorSelect" style="display: block; margin-bottom: 5px; font-weight: bold; color: #34495e;") Autor da Obra:
+        select#authorSelect(name="autorID" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; background: #fff; box-sizing: border-box;")
+          option(value="") Selecione um autor...
+
+      .form-actions(style="display: flex; gap: 10px; margin-top: 25px;")
+        button#btn-salvar-livro(type="submit" style="padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;") Salvar Livro
+        a.btn.btn-cancel(href="/books" style="padding: 10px 20px; background: #e0e0e0; color: #333; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 0.9rem;") Cancelar
 
   script.
     async function loadAuthorsAndValidate() {
-      try {
-        const res = await fetch('/api/authors');
-        const authors = await res.json();
-        const select = document.querySelector('#authorSelect');
+      const papel = localStorage.getItem('papel');
+      const select = document.querySelector('#authorSelect');
 
-        if (!authors || authors.length === 0) {
-          window.mostrarErroGlobal("Você precisa cadastrar um autor antes de adicionar um livro. Redirecionando...");
-          setTimeout(() => { window.location.href = '/authors/new'; }, 2500);
-          return; 
+      if (papel !== 'admin') {
+        const container = document.querySelector('.container');
+        if (container) container.innerHTML = '';
+        if (window.mostrarErroGlobal) {
+          window.mostrarErroGlobal("Acesso negado. Apenas administradores podem registrar novos livros.");
         }
-
-        authors.forEach(a => {
-          const option = document.createElement('option');
-          option.value = a.id;
-          option.textContent = a.nome;
-          select.appendChild(option);
-        });
-      } catch (err) {
-        console.error("Erro ao carregar autores:", err);
+        setTimeout(() => { window.location.href = '/books'; }, 3000);
+        return;
       }
+
+      document.getElementById('admin-area').style.display = 'block';
+
+      const endpointsParaTestar = ['/api/authors', '/authors'];
+      let respostaBruta = null;
+      let urlFuncionou = '';
+
+      for (const url of endpointsParaTestar) {
+        try {
+          const headers = { 'Content-Type': 'application/json' };
+          const token = localStorage.getItem('token');
+          if (token) headers['Authorization'] = `Bearer ${token}`;
+
+          const res = await fetch(url, { method: 'GET', headers });
+          if (res.ok) {
+            respostaBruta = await res.json();
+            urlFuncionou = url;
+            break;
+          } else {
+            console.warn(`Tentativa em ${url} retornou status HTTP: ${res.status}`);
+          }
+        } catch (e) {
+          console.error(`Falha de conexão física ao tentar a URL: ${url}`, e);
+        }
+      }
+
+      if (!respostaBruta) {
+        if (window.mostrarErroGlobal) {
+          window.mostrarErroGlobal("O Frontend tentou buscar em '/api/authors' e '/authors', mas seu backend retornou erro 404 ou barrou o acesso. Verifique o prefixo no seu app.use do Express.");
+        }
+        return;
+      }
+
+      const listaAutores = respostaBruta?.dados || respostaBruta?.autores || (Array.isArray(respostaBruta) ? respostaBruta : null);
+
+      if (!listaAutores || listaAutores.length === 0) {
+        console.log("Conteúdo recebido da rota:", respostaBruta);
+        if (window.mostrarErroGlobal) {
+          window.mostrarErroGlobal("A rota respondeu, mas o banco retornou uma lista vazia. Cadastre um autor primeiro na aba 'Autores'.");
+        }
+        return; 
+      }
+
+      select.innerHTML = '<option value="">Selecione um autor...</option>';
+      listaAutores.forEach(a => {
+        const option = document.createElement('option');
+        option.value = a.id; 
+        option.textContent = a.nome || 'Autor Sem Nome';
+        select.appendChild(option);
+      });
     }
 
     document.querySelector('#bookForm').onsubmit = async (e) => {
       e.preventDefault();
-      window.limparErroGlobal();
+      if (window.limparErroGlobal) window.limparErroGlobal();
+
+      const botao = document.getElementById('btn-salvar-livro');
+      botao.innerText = 'Salvando...';
+      botao.disabled = true;
       
       const formData = new FormData(e.target);
       const data = Object.fromEntries(formData);
-      data.publicacao = parseInt(data.publicacao);
+      
+      if (data.publicacao) data.publicacao = parseInt(data.publicacao, 10);
+      if (data.exemplar) data.exemplar = parseInt(data.exemplar, 10);
 
-      const resultado = await window.enviarParaAPI('/api/books', data);
+      const resultado = await window.enviarParaAPI('/api/books', data, 'POST');
 
-      if (resultado.sucesso) {
+      if (resultado && resultado.sucesso !== false) {
+        alert('Livro registrado com sucesso no acervo!');
         window.location.href = '/books';
+      } else {
+        botao.innerText = 'Salvar Livro';
+        botao.disabled = false;
       }
     };
 

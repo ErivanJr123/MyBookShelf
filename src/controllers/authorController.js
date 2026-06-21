@@ -29,7 +29,7 @@ export const addAuthor = async (req,res,next) => {
         next(error);
     }
 };
-//PATCH
+//UPDATE
 export const updateAuthor = async (req,res,next) => {
     try {
         const { id } = req.params;

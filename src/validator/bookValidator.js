@@ -1,6 +1,6 @@
 import { body,param } from "express-validator";
 
-class bookValidator{
+class Validator{
     static forGetID = [
         param("id")
             .isUUID(4)
@@ -18,9 +18,14 @@ class bookValidator{
             .isInt().withMessage("Ano de publicação inválido")
             .toInt(),
 
-        body("status")
-            .trim()
-            .isIn(["Lendo","Lido","Ler"]).withMessage("status de leitura precisa ser: Ler, Lendo ou Lido"),
+        body("exemplar")
+            .customSanitizer(V => {
+                if(V === undefined || V === null || V === "") return null;
+                const num = Number(V);
+                return num!==num?null:num;
+            })
+            .optional()
+            .isInt({min:1}).withMessage("Se enviado, o Número de exemplares precisa ser no mínimo 1"),
 
         body("autorID")
             .trim()
@@ -28,15 +33,21 @@ class bookValidator{
             .isUUID().withMessage("ID inválido")
     ];
     static forUpdate = [
-        body("status")
-            .exists({ checkFalsy:true })
-            .withMessage("O campo status é obrigatório")
-            .trim()
-            .isIn(["Ler","Lendo","Lido"])
-            .withMessage("status de leitura precisa ser: Ler, Lendo ou Lido"),
         param("id")
             .isUUID(4)
-            .withMessage("ID inválido")
+            .withMessage("ID inválido"),
+        body("titulo")
+            .trim()
+            .optional({checkFalsy: true}),
+        body("publicacao")
+            .trim()
+            .optional({checkFalsy: true})
+            .toInt(),
+        body("exemplar")
+            .trim()
+            .optional({checkFalsy: true})
+            .toInt()
+            .isInt({min: 0, max: 5000000010}).withMessage("O número de exemplares precisa ser um número inteiro maior ou igual a 0")
     ];
     static forDelete = [
         param("id")
@@ -45,4 +56,4 @@ class bookValidator{
     ];
 };
 
-export default bookValidator;
+export default Validator;

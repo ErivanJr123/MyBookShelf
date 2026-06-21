@@ -1,31 +1,149 @@
 extends layout
 
 block content
-  h1 📚 Meus Livros
-  a.btn.btn-primary(href="/books/new") + Adicionar Livro
-  table#booksTable
-    thead
-      tr
-        th Título
-        th Status
-    tbody
+  //- Injetamos o script nativo para adicionar a classe de fôlego assim que a tela abre
+  script.
+    document.querySelector('.container')?.classList.add('wide-layout');
+
+  .books-page
+    .page-header(style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 15px;")
+      h1(style="margin: 0;") 📚 Biblioteca
+      a#btn-add-book.btn.btn-primary(href="/books/new" style="display: none; padding: 10px 15px; background: #007bff; color: white; text-decoration: none; border-radius: 4px; font-weight: bold;") + Adicionar Livro
+
+    .search-container(style="margin-bottom: 30px; display: flex; gap: 10px;")
+      input#search-input(type="text" placeholder="🔍 Buscar por um título..." style="flex: 1; padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 1rem; box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);")
+      button#btn-clear-search(style="padding: 12px 20px; background: #e0e0e0; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; color: #555;") Limpar
+
+    #books-grid
+      .loading-state Carregando acervo...
 
   script.
-    async function loadBooks() {
-      try {
-        const res = await fetch('/api/books');
-        const books = await res.json();
-        const tbody = document.querySelector('#booksTable tbody');
-        
-        books.forEach(book => {
-          tbody.innerHTML += `
-            <tr>
-              <td><a href="/books/${book.id}">${book.titulo}</a></td>
-              <td>${book.status}</td>
-            </tr>`;
-        });
-      } catch (err) {
-        console.error("Erro ao carregar livros:", err);
+    async function loadBooks(queryString = '') {
+      const papel = localStorage.getItem('papel'); 
+      const token = localStorage.getItem('token');
+      const userId = localStorage.getItem('id');
+      const grid = document.querySelector('#books-grid');
+      
+      grid.innerHTML = '<div class="loading-state">Buscando livros no acervo...</div>';
+
+      if (papel === 'admin') {
+        document.getElementById('btn-add-book').style.display = 'block';
       }
+
+      const resultado = await window.enviarParaAPI(`/api/books${queryString}`, null, 'GET');
+      grid.innerHTML = '';
+
+      const listaLivros = resultado?.dados || resultado?.livros || (Array.isArray(resultado) ? resultado : null);
+
+      if (!listaLivros || listaLivros.length === 0) {
+        grid.innerHTML = '<p style="color: #666; padding: 10px;">Nenhum livro encontrado com os critérios de busca.</p>';
+        return;
+      }
+
+      listaLivros.forEach(book => {
+        const card = document.createElement('div');
+        card.className = 'book-card';
+        card.setAttribute('data-id', book.id);
+        card.setAttribute('data-autor-id', book.autorID);
+
+        card.innerHTML = `
+          <div class="card-summary">
+            <h3 style="margin: 0 0 10px 0; color: #2c3e50; font-size: 1.25rem;">${book.titulo}</h3>
+            <p style="margin: 0; color: #7f8c8d; font-size: 0.95rem;">📅 Publicação: ${book.publicacao || 'Não informada'}</p>
+          </div>
+          <div class="card-details" style="display: none; margin-top: 15px; padding-top: 15px; border-top: 1px solid #eee; font-size: 0.9rem; line-height: 1.6; color: #34495e;">
+            <p style="margin: 5px 0;"><strong>✍️ Autor:</strong> <span class="author-placeholder">Buscando autor...</span></p>
+            <p style="margin: 5px 0;"><strong>📚 Exemplares:</strong> ${book.exemplar || 1}</p>
+            
+            <div style="display: flex; gap: 10px; margin-top: 15px; justify-content: space-between; align-items: center;">
+              <button class="btn-add-shelf" style="display: ${token ? 'inline-flex' : 'none'}; flex: 1; justify-content: center; align-items: center; gap: 4px; padding: 10px; background: #28a745; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85rem; height: 38px; box-sizing: border-box;">+ Estante</button>
+              <button class="btn-edit-book" style="display: ${papel === 'admin' ? 'inline-flex' : 'none'}; flex: 1; justify-content: center; align-items: center; gap: 4px; padding: 10px; background: #f0ad4e; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85rem; height: 38px; box-sizing: border-box;">Editar</button>
+              <button class="btn-delete-book" style="display: ${papel === 'admin' ? 'inline-flex' : 'none'}; flex: 1; justify-content: center; align-items: center; gap: 4px; padding: 10px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.85rem; height: 38px; box-sizing: border-box;">Excluir</button>
+            </div>
+          </div>
+        `;
+
+        card.addEventListener('mouseenter', () => card.style.transform = 'translateY(-4px)');
+        card.addEventListener('mouseleave', () => card.style.transform = 'translateY(0)');
+
+        card.addEventListener('click', async (e) => {
+          if (e.target.classList.contains('btn-delete-book') || e.target.classList.contains('btn-add-shelf') || e.target.classList.contains('btn-edit-book')) return;
+
+          const detailsBlock = card.querySelector('.card-details');
+          const authorSpan = card.querySelector('.author-placeholder');
+
+          if (detailsBlock.style.display === 'none') {
+            detailsBlock.style.display = 'block';
+            
+            if (authorSpan.getAttribute('data-loaded') !== 'true') {
+              const autorResultado = await window.enviarParaAPI(`/api/authors/${book.autorID}`, null, 'GET');
+              
+              if (autorResultado) {
+                const dadosAutor = autorResultado.dados || autorResultado;
+                authorSpan.innerText = dadosAutor.nome || 'Autor não identificado';
+              } else {
+                authorSpan.innerText = 'Autor não encontrado';
+              }
+              authorSpan.setAttribute('data-loaded', 'true');
+            }
+          } else {
+            detailsBlock.style.display = 'none';
+          }
+        });
+
+        card.querySelector('.btn-add-shelf').addEventListener('click', async (e) => {
+          e.stopPropagation();
+          if (window.limparErroGlobal) window.limparErroGlobal();
+          const resultado = await window.enviarParaAPI(`/api/users/${userId}/shelf`, { bookID: book.id }, 'POST');
+          if (resultado && resultado.sucesso !== false) {
+            alert(`"${book.titulo}" foi adicionado com sucesso à sua Estante Pessoal!`);
+          }
+        });
+
+        if (papel === 'admin') {
+          card.querySelector('.btn-edit-book').addEventListener('click', (e) => {
+            e.stopPropagation();
+            window.location.href = `/books/edit/${book.id}`;
+          });
+        }
+
+        card.querySelector('.btn-delete-book').addEventListener('click', async (e) => {
+          e.stopPropagation();
+          if (window.limparErroGlobal) window.limparErroGlobal();
+          if (!confirm(`Deseja realmente remover o livro "${book.titulo}"?`)) return;
+          
+          const resDelete = await window.enviarParaAPI(`/api/books/${book.id}`, null, 'DELETE');
+          
+          if (resDelete && resDelete.sucesso !== false) {
+            card.remove();
+            alert('Livro removido do acervo.');
+          }
+        });
+
+        grid.appendChild(card);
+      });
     }
-    loadBooks();
+
+    document.addEventListener('DOMContentLoaded', () => {
+      loadBooks();
+      const searchInput = document.getElementById('search-input');
+      const btnClear = document.getElementById('btn-clear-search');
+      let timeoutDebounce = null;
+
+      searchInput.addEventListener('input', (e) => {
+        clearTimeout(timeoutDebounce);
+        const termoBusca = e.target.value.trim();
+        timeoutDebounce = setTimeout(() => {
+          if (termoBusca !== '') {
+            loadBooks(`?titulo=${encodeURIComponent(termoBusca)}`);
+          } else {
+            loadBooks();
+          }
+        }, 400);
+      });
+
+      btnClear.addEventListener('click', () => {
+        searchInput.value = '';
+        loadBooks();
+      });
+    });

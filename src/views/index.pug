@@ -1,40 +1,73 @@
 extends layout
 
 block content
-  div(style="text-align: center; padding: 50px 0;")
-    h1 📚 MyBookShelf
+  div(style="text-align: center; padding: 60px 0;")
+    h1(style="color: #2c3e50; font-size: 2.5rem; margin-bottom: 10px;") Bem-vindo ao 📚MyBookShelf
+    p.subtitle(style="color: #7f8c8d; font-size: 1.2rem; margin-bottom: 40px;") Organize suas leituras de forma simples.
     
-    #msg-erro(style="display: none; background: #ffcccc; color: #cc0000; border: 1px solid #cc0000; padding: 15px; margin: 20px auto; border-radius: 8px; max-width: 400px;")
+    //- Caixa de erro que só aparece se a validação falhar
+    #msg-erro(style="display: none; background: #ffcccc; color: #cc0000; border: 1px solid #cc0000; padding: 15px; margin: 20px auto; border-radius: 8px; max-width: 450px;")
       strong ⚠️ Atenção: 
       span#texto-erro 
 
     div(style="display: flex; justify-content: center; gap: 20px; margin-top: 30px;")
-      a.btn.btn-primary(href="/authors") ✍️ Autores
-      a#link-livros.btn.btn-primary(href="/books") 📖 Livros
+      a.btn.btn-primary(href="/authors" style="padding: 12px 25px; background-color: #34495e; color: white; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 1.05rem;") ✍️ Ver Autores
+      a#link-livros.btn.btn-primary(href="/books" style="padding: 12px 25px; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 1.05rem;") 📖 Ver Livros
 
   script.
-    const btnLivros = document.getElementById('link-livros');
-    const msgErro = document.getElementById('msg-erro');
-    const textoErro = document.getElementById('texto-erro');
+    document.addEventListener('DOMContentLoaded', () => {
+      const btnLivros = document.getElementById('link-livros');
+      const msgErro = document.getElementById('msg-erro');
+      const textoErro = document.getElementById('texto-erro');
 
-    btnLivros.addEventListener('click', async (e) => {
-      e.preventDefault();
-
-      try {
-        const response = await fetch('/api/authors');
-        const authors = await response.json();
-
-        if (!authors || authors.length === 0) {
-          textoErro.innerText = "Cadastre ao menos um autor antes de gerenciar os livros.";
-          msgErro.style.display = 'block';
+      if (btnLivros) {
+        btnLivros.addEventListener('click', async (e) => {
+          e.preventDefault(); // Intercepta o clique para fazer a validação antes de mudar de página
           
-          msgErro.style.animation = "shake 0.5s";
-          setTimeout(() => msgErro.style.animation = "", 500);
-        } else {
-          window.location.href = '/books';
-        }
-      } catch (error) {
-        textoErro.innerText = "Erro ao conectar com o servidor.";
-        msgErro.style.display = 'block';
+          if (window.limparErroGlobal) window.limparErroGlobal();
+          if (msgErro) msgErro.style.display = 'none';
+
+          // 1. Usa a central automática criada no seu layout.pug (injeta o token se houver)
+          const resultado = await window.enviarParaAPI('/api/authors', null, 'GET');
+
+          // 2. DETECTOR DE FALHA DE AUTENTICAÇÃO OU SERVIDOR OFFLINE
+          // Se o resultado for nulo, ou indicar erro de token expirado/servidor fora do ar
+          if (!resultado || resultado.status === 'error' || resultado.statusCode === 401 || resultado.statusCode === 403) {
+              // Limpa imediatamente o lixo do localStorage para sumir com os resíduos visuais do topo
+              localStorage.removeItem('token');
+              localStorage.removeItem('papel');
+              localStorage.removeItem('id');
+              localStorage.removeItem('login');
+              
+              const mensagemFalha = resultado?.message || 'Sessão expirada ou servidor indisponível. Faça login novamente.';
+              
+              if (window.mostrarErroGlobal) {
+                  window.mostrarErroGlobal(mensagemFalha);
+              } else if (textoErro && msgErro) {
+                  textoErro.innerText = mensagemFalha;
+                  msgErro.style.display = 'block';
+              }
+              
+              // Força o recarregamento após 2 segundos para limpar os menus fantasmas gerados pelo resíduo
+              setTimeout(() => { window.location.reload(); }, 2000);
+              return; // Aborta o fluxo de teste de autores
+          }
+
+          // 3. Trata o encapsulamento estruturado (.dados) vindo do seu backend se a API respondeu certo
+          const listaAutores = resultado?.dados || resultado?.autores || (Array.isArray(resultado) ? resultado : null);
+
+          // 4. Regra de Negócio: Se a biblioteca não tiver autores, barra o acesso aos livros
+          if (!listaAutores || listaAutores.length === 0) {
+            if (textoErro && msgErro) {
+              textoErro.innerText = " Cadastre ao menos um autor na biblioteca antes de acessar e gerenciar os livros.";
+              msgErro.style.display = 'block';
+              msgErro.style.animation = "shake 0.5s";
+              setTimeout(() => msgErro.style.animation = "", 500);
+            }
+          } else {
+            // Se passou na validação, redireciona o navegador para a listagem pública de livros
+            window.location.href = '/books';
+          }
+        });
       }
     });

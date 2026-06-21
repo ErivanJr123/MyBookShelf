@@ -4,12 +4,29 @@ window.enviarParaAPI = async (url, dados, metodo = 'POST') => {
         window.limparErroGlobal();
     }
 
+    // Coleta o token salvo no crachá do navegador após o login
+    const token = localStorage.getItem('token');
+    
+    // Monta os cabeçalhos padrão
+    const headers = { 'Content-Type': 'application/json' };
+    
+    // Se o usuário estiver logado, anexa automaticamente o Bearer Token para passar no seu middleware authenticate
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+
     try {
-        const res = await fetch(url, {
+        const configFetch = {
             method: metodo,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(dados)
-        });
+            headers: headers
+        };
+
+        // Regra do Fetch: Métodos GET e DELETE não podem enviar body, senão o navegador quebra
+        if (metodo !== 'GET' && metodo !== 'DELETE' && dados) {
+            configFetch.body = JSON.stringify(dados);
+        }
+
+        const res = await fetch(url, configFetch);
 
         // Se a resposta da API for sucesso (200, 201), retorna os dados ou true
         if (res.ok) {
@@ -19,7 +36,7 @@ window.enviarParaAPI = async (url, dados, metodo = 'POST') => {
         // SE A API FALHAR: Captura o JSON estruturado do seu globalErrorHandler
         const errorJson = await res.json();
         
-        // Dispara a mensagem que veio diretamente da API na tela atual
+        // Dispara a mensagem que veio diretamente da API na tela atual com efeito shake
         if (typeof window.mostrarErroGlobal === 'function') {
             window.mostrarErroGlobal(errorJson.message || "Erro ao processar requisição.");
         }
